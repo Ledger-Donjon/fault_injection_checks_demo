@@ -1,0 +1,19 @@
+[package]
+name = "pin_verif"
+version = "0.1.0"
+edition = "2018"
+
+[dev-dependencies]
+testmacro = { git = "https://github.com/yhql/testmacro"}
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+opt-level = 's'
+
+[[example]]
+name = "fi_test"
+# crate-type = ["staticlib"]
+test = false
