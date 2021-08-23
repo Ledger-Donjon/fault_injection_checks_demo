@@ -1,4 +1,4 @@
-name: Rust
+name: Fault check PIN Comparison
 
 on:
   push:
@@ -32,5 +32,4 @@ jobs:
       - name: Install Rainbow
         run: python3 -m pip install git+https://github.com/Ledger-Donjon/rainbow
       - name: Run Fault check
-        run: python3 ci_check.py
-        
+        run: python3 ci.py
