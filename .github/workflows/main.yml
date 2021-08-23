@@ -1,0 +1,36 @@
+name: Rust
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+    inputs: 
+      name: 
+        description: 'Manually triggered'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build_ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install thumbv6 target
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          target: thumbv6m-none-eabi 
+      - name: Cargo build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build 
+          args: --target=thumbv6m-none-eabi --release --example fi_test
+      - name: Install Rainbow
+        run: python3 -m pip install git+https://github.com/Ledger-Donjon/rainbow
+      - name: Run Fault check
+        run: python3 ci_check.py
+        
