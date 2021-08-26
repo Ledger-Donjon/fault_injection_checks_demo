@@ -15,5 +15,4 @@ opt-level = 's'
 
 [[example]]
 name = "fi_test"
-# crate-type = ["staticlib"]
 test = false

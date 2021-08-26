@@ -1,6 +1,7 @@
 [target.thumbv6m-none-eabi]
 rustflags = [ 
   "-C", "link-arg=-Tscript.ld",
+  "-C", "debuginfo=1",
   ]
 runner = "qemu-system-arm -machine netduino2 -semihosting -nographic -kernel"
 

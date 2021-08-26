@@ -1,0 +1,40 @@
+{
+	// See https://go.microsoft.com/fwlink/?LinkId=733558
+	// for the documentation about the tasks.json format
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Fault: All tests",
+			"command": "python",
+			"args": ["fi_check.py", "fi_test1", "fi_test2", "fi_test3"],
+			"problemMatcher": {
+				"owner": "rust",
+				"fileLocation": ["absolute"],
+				"pattern": {
+					"regexp": "warning: '(.*?)' (.*?):(\\d+):(\\d+)",
+					"file": 2,
+					"line": 3,
+					"column": 4,
+					// "severity": 0,
+					"message": 1
+				}
+			}
+		},
+		{
+			"label": "Fault: Safe test",
+			"command": "python",
+			"args": ["fi_check.py", "fi_test4"],
+			"problemMatcher": {
+				"owner": "rust",
+				"fileLocation": ["absolute"],
+				"pattern": {
+					"regexp": "warning: '(.*?)' (.*?):(\\d+):(\\d+)",
+					"file": 2,
+					"line": 3,
+					"column": 4,
+					"message": 1
+				}
+			}
+		}
+	],
+}
