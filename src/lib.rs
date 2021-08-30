@@ -42,7 +42,7 @@ pub fn safe_compare_pin(user_pin: &[u8], ref_pin: &[u8]) -> u8 {
         res0 |= user_pin[i] ^ ref_pin[i];
         res1 |= user_pin[i] ^ ref_pin[i];
     }
-    res0 | res1 | (len - user_pin.len()) as u8
+    res0 | res1 
 }
 
 #[cfg(test)]
