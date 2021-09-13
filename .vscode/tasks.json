@@ -4,26 +4,14 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "Fault: All tests",
-			"command": "python",
-			"args": ["fi_check.py", "fi_test1", "fi_test2", "fi_test3"],
-			"problemMatcher": {
-				"owner": "rust",
-				"fileLocation": ["absolute"],
-				"pattern": {
-					"regexp": "warning: '(.*?)' (.*?):(\\d+):(\\d+)",
-					"file": 2,
-					"line": 3,
-					"column": 4,
-					// "severity": 0,
-					"message": 1
-				}
-			}
+			"label": "build fi_test",
+			"command": "cargo",
+			"args": ["build", "--release", "--example", "fi_test"],
 		},
 		{
-			"label": "Fault: Safe test",
+			"label": "Fault: Safe PartialEq test",
 			"command": "python",
-			"args": ["fi_check.py", "fi_test4"],
+			"args": ["fi_check.py", "fi_test_hard", "fi_test_hard2"],
 			"problemMatcher": {
 				"owner": "rust",
 				"fileLocation": ["absolute"],
@@ -34,7 +22,8 @@
 					"column": 4,
 					"message": 1
 				}
-			}
+			},
+			"dependsOn": ["build fi_test"]
 		}
 	],
 }
