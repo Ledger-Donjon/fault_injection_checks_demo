@@ -1,12 +1,11 @@
 import subprocess as sp
 
-def get_addr2line(addr):
+def get_addr2line(addr, no_llvm=True):
 	addr2line = sp.run(["addr2line", 
-						"-fC",
-						"--llvm",
+						"-fiC",
 						"-e", "./target/thumbv6m-none-eabi/release/examples/fi_test",
 						"-a", f"{addr:x}",
-				], stdout=sp.PIPE)
+				] + ["--llvm"]*(not no_llvm), stdout=sp.PIPE)
 	return addr2line.stdout.decode().split()[-2:]
 
 if __name__ == "__main__":
