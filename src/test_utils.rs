@@ -18,7 +18,7 @@ pub struct TestType {
     pub f: fn() -> Result<(), ()>,
 }
 
-use crate::{print,println};
+use crate::{print, println};
 pub fn test_runner(tests: &[&TestType]) {
     println!("--- {} tests ---", tests.len());
     for t in tests {

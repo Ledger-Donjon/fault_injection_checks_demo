@@ -30,9 +30,9 @@ pub fn debug_print(s: &str) {
 struct DebugStruct {}
 
 impl DebugStruct {
-  pub fn new() -> DebugStruct {
-      DebugStruct {}
-  }
+    pub fn new() -> DebugStruct {
+        DebugStruct {}
+    }
 }
 
 use core::fmt;
@@ -61,4 +61,3 @@ macro_rules! println {
     () => ($crate::print!("\n"));
     ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
 }
-
