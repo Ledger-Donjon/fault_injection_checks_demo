@@ -3,8 +3,6 @@
 #![feature(custom_test_frameworks)]
 #![reexport_test_harness_main = "test_main"]
 #![test_runner(test_utils::test_runner)]
-#![feature(llvm_asm)]
-#![feature(asm)]
 
 pub mod qemu;
 
@@ -82,7 +80,7 @@ impl<T: PartialEq> PartialEq<&T> for IntegrityProtected<T> {
     /// succeeded 
     /// Always inline because otherwise the call to `eq()` could 
     /// be skipped.
-    #[inline(always)]
+    // #[inline(always)]
     fn eq(&self, rhs: &&T) -> bool {
         if compare_never_inlined(rhs, &&self.0) {
             if compare_never_inlined(&self.0, rhs) {

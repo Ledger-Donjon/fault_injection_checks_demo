@@ -1,3 +1,5 @@
+use core::arch::asm;
+
 #[cfg(test)]
 pub fn exit() -> ! {
     unsafe {
