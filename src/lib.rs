@@ -152,8 +152,6 @@ mod tests {
 #[cfg(test)]
 #[no_mangle]
 pub fn _start() -> ! {
-    #[cfg(test)]
     test_main();
-
-    qemu::exit();
+    loop {}
 }

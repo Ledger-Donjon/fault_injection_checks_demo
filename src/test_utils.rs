@@ -20,12 +20,19 @@ pub struct TestType {
 
 use crate::{print, println};
 pub fn test_runner(tests: &[&TestType]) {
+    use cortex_m_semihosting::debug::{self, EXIT_SUCCESS, EXIT_FAILURE};
+
     println!("--- {} tests ---", tests.len());
+    let mut return_code = EXIT_SUCCESS;
     for t in tests {
         match (t.f)() {
             Ok(()) => print!("\x1b[1;32m   ok   \x1b[0m"),
-            Err(()) => print!("\x1b[1;31m  fail  \x1b[0m"),
+            Err(()) => {
+                print!("\x1b[1;31m  fail  \x1b[0m");
+                return_code = EXIT_FAILURE;
+            }
         }
         println!("{}::{}", t.modname, t.name);
     }
+    debug::exit(return_code);
 }
