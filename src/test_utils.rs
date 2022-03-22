@@ -20,7 +20,7 @@ pub struct TestType {
 
 use crate::{print, println};
 pub fn test_runner(tests: &[&TestType]) {
-    use cortex_m_semihosting::debug::{self, EXIT_SUCCESS, EXIT_FAILURE};
+    use cortex_m_semihosting::debug::{self, EXIT_FAILURE, EXIT_SUCCESS};
 
     println!("--- {} tests ---", tests.len());
     let mut return_code = EXIT_SUCCESS;

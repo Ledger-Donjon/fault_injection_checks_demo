@@ -21,9 +21,9 @@ const REF_PIN: [u8; 4] = [1, 2, 3, 4];
 #[inline(never)]
 pub fn fi_test_simple() {
     if compare_pin(&[0; 4], &REF_PIN) {
-        success();
+        success()
     } else {
-        fail();
+        fail()
     }
 }
 
@@ -33,12 +33,12 @@ pub fn fi_test_double_call() {
     let user_pin = [0; 4];
     if compare_pin(&user_pin, &REF_PIN) {
         if compare_pin(&REF_PIN, &user_pin) {
-            success();
+            success()
         } else {
-            return fail();
+            fail()
         }
     } else {
-        fail();
+        fail()
     }
 }
 
@@ -46,9 +46,9 @@ pub fn fi_test_double_call() {
 #[inline(never)]
 pub fn fi_test_simple_fp() {
     if compare_pin_fp(&[0; 4], &REF_PIN) {
-        return success();
+        success()
     } else {
-        return fail();
+        fail()
     }
 }
 
@@ -56,32 +56,34 @@ pub fn fi_test_simple_fp() {
 #[inline(never)]
 pub fn fi_test_simple_fp2() {
     if compare_pin_fp(&[1, 0, 0, 0], &REF_PIN) {
-        return success();
+        success()
     } else {
-        return fail();
+        fail()
     }
 }
 
-const REFPIN: pin_verif::IntegrityProtected<[u8;4]> = pin_verif::IntegrityProtected(REF_PIN);
+const REFPIN: pin_verif::IntegrityProtected<[u8; 4]> = pin_verif::IntegrityProtected(REF_PIN);
 
 #[no_mangle]
 #[inline(never)]
 pub fn fi_test_hard() {
     if REFPIN == &[0; 4] {
-        success();
+        success()
     } else {
-        fail();
+        fail()
     }
 }
 
 #[no_mangle]
 #[inline(never)]
 pub fn fi_test_hard2() {
-	let ref_pin = pin_verif::IntegrityProtected([1,8,9,2,3,1,3,2,1,0,2,23,29381,281,283,172,381,280]);
+    let ref_pin = pin_verif::IntegrityProtected([
+        1, 8, 9, 2, 3, 1, 3, 2, 1, 0, 2, 23, 29381, 281, 283, 172, 381, 280,
+    ]);
     if ref_pin == &[1; 18] {
-        success();
+        success()
     } else {
-        fail();
+        fail()
     }
 }
 

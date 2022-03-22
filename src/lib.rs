@@ -27,19 +27,15 @@ pub fn compare_pin(user_pin: &[u8], ref_pin: &[u8]) -> bool {
             return false;
         }
     }
-    return true;
+    true
 }
 
 /// The easy way to fix against single fault injections. Does it work?
 pub fn compare_pin_double(user_pin: &[u8], ref_pin: &[u8]) -> bool {
-    if compare_pin(&user_pin, &ref_pin) {
-        if compare_pin(&ref_pin, &user_pin) {
-            return true;
-        } else {
-            return false;
-        }
+    if compare_pin(user_pin, ref_pin) {
+        compare_pin(ref_pin, user_pin)
     } else {
-        return false;
+        false
     }
 }
 
@@ -77,22 +73,22 @@ pub fn compare_never_inlined<T: PartialEq>(a: T, b: T) -> bool {
 impl<T: PartialEq> PartialEq<&T> for IntegrityProtected<T> {
     /// The core of the countermeasure:
     /// compare twice, and return true only when both comparison
-    /// succeeded 
-    /// Always inline because otherwise the call to `eq()` could 
+    /// succeeded
+    /// Always inline because otherwise the call to `eq()` could
     /// be skipped.
     #[inline(always)]
     fn eq(&self, rhs: &&T) -> bool {
         if compare_never_inlined(rhs, &&self.0) {
             if compare_never_inlined(&self.0, rhs) {
-                return true;
+                true
             } else {
                 // Can only reach this branch when faulted
                 // perhaps a `panic!()` is more appropriate
                 // or an infinite loop, ...
-                return false;
+                false
             }
         } else {
-            return false;
+            false
         }
     }
 }
