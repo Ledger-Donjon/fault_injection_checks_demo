@@ -145,9 +145,9 @@ if __name__ == "__main__":
 	import sys
 	from argparse import ArgumentParser
 	argp = ArgumentParser()
-	argp.add_argument('functions', nargs='+', help="functions to be scanned")
-	argp.add_argument('--cli', action='store_const', const=True, default=False, help="Produce report in command line.")
-	argp.add_argument('-r', '--replay', action='store_const', const=True, default=False, help="Replay found faults with instruction trace.")
+	argp.add_argument('functions', nargs='*', help="functions to scan, default to all")
+	argp.add_argument('--cli', action='store_const', const=True, default=False, help="produce report in command line")
+	argp.add_argument('-r', '--replay', action='store_const', const=True, default=False, help="replay found faults with instruction trace")
 	args = argp.parse_args()
 
 	e = rbw()
@@ -180,6 +180,11 @@ if __name__ == "__main__":
 
 	def inject_ones(a,p):
 		return inject_stuck_at(a,p,0xffff_ffff)
+
+	# If no functions name were provided, default to all functions beginning
+	# with `fi_test_`
+	if not args.functions:
+		args.functions = [f for f in e.functions.keys() if f.startswith("fi_test_")]
 
 	functions_to_test = [e.functions[f] for f in args.functions]
 
