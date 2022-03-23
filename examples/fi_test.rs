@@ -84,4 +84,7 @@ pub fn _start() {
     simple_fp2();
     hard();
     hard2();
+
+    use cortex_m_semihosting::debug::{self, EXIT_SUCCESS};
+    debug::exit(EXIT_SUCCESS);
 }
