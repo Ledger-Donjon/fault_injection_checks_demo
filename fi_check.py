@@ -164,8 +164,9 @@ if __name__ == "__main__":
 		EXIT_STATUS = False 
 		return True
 
+	# rust_begin_unwind is called when panic! happens.
 	e.stubbed_functions['nominal_behavior'] = nominal_behavior
-	e.stubbed_functions['faulted_return'] = faulted_return
+	e.stubbed_functions['rust_begin_unwind'] = faulted_return
 
 	def fi_setup():
 		global EXIT_STATUS

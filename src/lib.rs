@@ -10,6 +10,11 @@ pub mod qemu;
 mod test_utils;
 
 use core::panic::PanicInfo;
+
+/// With the panic handler being `#[inline(never)]` the symbol
+/// `rust_begin_unwind` will be available to place a breakpoint on to halt
+/// when a panic is happening. This idea was taken from panic_halt crate.
+#[inline(never)]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     crate::println!("{}", info);
