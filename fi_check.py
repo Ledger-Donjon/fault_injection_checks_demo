@@ -164,8 +164,8 @@ if __name__ == "__main__":
 		EXIT_STATUS = False 
 		return True
 
-	# rust_begin_unwind is called when panic! happens.
-	e.stubbed_functions['nominal_behavior'] = nominal_behavior
+	# Hook to panic, mostly caused by fault injection
+	# rust_begin_unwind is called when panic! happens
 	e.stubbed_functions['rust_begin_unwind'] = faulted_return
 
 	def fi_setup():
@@ -191,8 +191,13 @@ if __name__ == "__main__":
 
 	total_faults = [] 
 	for func in functions_to_test:
+		# Hook to a function appended to the end of the test
+		# This is used to check if the fault makes the function return
+		name = e.function_names[func]
+		e.stubbed_functions[f'nominal_behavior_{name}'] = nominal_behavior
+
 		if args.cli:
-			print(f'\n* Testing \x1b[1;35m{e.function_names[func]}\x1b[0m') 
+			print(f'\n* Testing \x1b[1;35m{name}\x1b[0m')
 		for model in [inject_skip, inject_zero, inject_ones]:
 			if args.cli:
 				print(f"[ ] {model.__name__}")
