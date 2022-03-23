@@ -106,9 +106,9 @@ def test_faults(emulator, target_function, fault_injector, fault_setup, is_fault
 				emulator.start(new_pc, stopgap, count = max_ins) 
 			except uc.unicorn.UcError as uc_error:
 				# Crashed after the fault.
-				# This includes cases were 'success' was executed but
+				# This includes cases were 'faulted_return' was executed but
 				# lead to an incorrect state 
-				# However if 'success' represents a permanent decision like
+				# However if 'faulted_return' represents a permanent decision like
 				# updating a flag in non-volatile memory then it is incorrect
 				# to consider this a crash, and this part of the script should
 				# be adapted accordingly (i.e. complete the loop iteration)
@@ -117,10 +117,10 @@ def test_faults(emulator, target_function, fault_injector, fault_setup, is_fault
 
 		status = is_faulted()
 		if status is None:
-			# Execution went astray and never reached either 'success' nor 'fail'
+			# Execution went astray and never reached either 'faulted_return' nor 'nominal_behavior'
 			crash_count += 1
 		elif status == True:
-			# Successful fault: execution reached 'success' (and did not crash afterwards)
+			# Successful fault: execution reached 'faulted_return' (and did not crash afterwards)
 			addr, _, ins_mnemonic, ins_str = emulator.disassemble_single(pc_stopped, 4)
 			func, file_ = get_addr2line(addr, no_llvm=cli_report)
 			if cli_report:
@@ -154,18 +154,18 @@ if __name__ == "__main__":
 	e.load('./target/thumbv6m-none-eabi/release/examples/fi_test', typ='.elf')
 	e.trace = False 
 
-	def success(emu):
+	def faulted_return(emu):
 		global EXIT_STATUS
 		EXIT_STATUS = True
 		return True
 
-	def fail(emu):
+	def nominal_behavior(emu):
 		global EXIT_STATUS
 		EXIT_STATUS = False 
 		return True
 
-	e.stubbed_functions['fail'] = fail 
-	e.stubbed_functions['success'] = success 
+	e.stubbed_functions['nominal_behavior'] = nominal_behavior
+	e.stubbed_functions['faulted_return'] = faulted_return
 
 	def fi_setup():
 		global EXIT_STATUS

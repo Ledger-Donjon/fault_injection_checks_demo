@@ -6,14 +6,14 @@ use test_fi_macro::test_fi;
 
 #[no_mangle]
 #[inline(never)]
-fn success() {
-    println!("passed");
+fn faulted_return() {
+    println!("successfully faulted");
 }
 
 #[no_mangle]
 #[inline(never)]
-fn fail() {
-    println!("failed");
+fn nominal_behavior() {
+    println!("nominal behavior");
 }
 
 const REF_PIN: [u8; 4] = [1, 2, 3, 4];
@@ -21,9 +21,9 @@ const REF_PIN: [u8; 4] = [1, 2, 3, 4];
 #[test_fi]
 pub fn simple() {
     if compare_pin(&[0; 4], &REF_PIN) {
-        success()
+        faulted_return()
     } else {
-        fail()
+        nominal_behavior()
     }
 }
 
@@ -32,30 +32,30 @@ pub fn double_call() {
     let user_pin = [0; 4];
     if compare_pin(&user_pin, &REF_PIN) {
         if compare_pin(&REF_PIN, &user_pin) {
-            success()
+            faulted_return()
         } else {
-            fail()
+            nominal_behavior()
         }
     } else {
-        fail()
+        nominal_behavior()
     }
 }
 
 #[test_fi]
 pub fn simple_fp() {
     if compare_pin_fp(&[0; 4], &REF_PIN) {
-        success()
+        faulted_return()
     } else {
-        fail()
+        nominal_behavior()
     }
 }
 
 #[test_fi]
 pub fn simple_fp2() {
     if compare_pin_fp(&[1, 0, 0, 0], &REF_PIN) {
-        success()
+        faulted_return()
     } else {
-        fail()
+        nominal_behavior()
     }
 }
 
@@ -64,9 +64,9 @@ const REFPIN: pin_verif::IntegrityProtected<[u8; 4]> = pin_verif::IntegrityProte
 #[test_fi]
 pub fn hard() {
     if REFPIN == &[0; 4] {
-        success()
+        faulted_return()
     } else {
-        fail()
+        nominal_behavior()
     }
 }
 
@@ -76,9 +76,9 @@ pub fn hard2() {
         1, 8, 9, 2, 3, 1, 3, 2, 1, 0, 2, 23, 29381, 281, 283, 172, 381, 280,
     ]);
     if ref_pin == &[1; 18] {
-        success()
+        faulted_return()
     } else {
-        fail()
+        nominal_behavior()
     }
 }
 
