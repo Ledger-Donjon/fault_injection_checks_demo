@@ -4,12 +4,6 @@ Install `addr2line` by cloning [](https://github.com/gimli-rs/addr2line) and `ca
 
 ## Usage
 
-First build the example with:
-
-```
-cargo build --release --example fi_test
-```
-
 ### Testing against faults locally
 
 `python fi_check.py --cli fi_test1 ...`

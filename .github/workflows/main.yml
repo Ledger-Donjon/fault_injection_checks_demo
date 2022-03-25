@@ -24,11 +24,6 @@ jobs:
           toolchain: nightly
           override: true
           target: thumbv6m-none-eabi 
-      - name: Cargo build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build 
-          args: --target=thumbv6m-none-eabi --release --example fi_test
       - name: Install Rainbow
         run: python3 -m pip install git+https://github.com/Ledger-Donjon/rainbow
       - name: Run Fault check

@@ -1,7 +1,11 @@
+import json
+import subprocess
+
 import capstone as cs
-import unicorn as uc 
+import unicorn as uc
 from rainbow.generics import rainbow_arm as rbw
 from addr2line import get_addr2line
+
 
 def inject_skip(emu, current_pc):
 	""" Skip current instruction at 'current_pc' with emulator state 'emu' """
@@ -11,6 +15,7 @@ def inject_skip(emu, current_pc):
 	_, ins_size, _, _ = ins
 	thumb_bit = (emu["cpsr"]>>5) & 1
 	return (current_pc + ins_size) | thumb_bit 
+
 
 def inject_stuck_at(emu, current_pc, value):
 	""" Injects a value in the destination register updated by the current instruction """
@@ -34,6 +39,7 @@ def inject_stuck_at(emu, current_pc, value):
 	thumb_bit = (emu["cpsr"]>>5) & 1
 	ret = current_pc | thumb_bit
 	return ret 
+
 
 def replay_fault(instruction_index, emulator, target_function, fault_injector, max_ins=200):
 	""" Execute function and display instruction trace, while applying fault at 'instruction_index'"""
@@ -61,7 +67,8 @@ def replay_fault(instruction_index, emulator, target_function, fault_injector, m
 	print('<--!', end='\n\n')
 	ret = emulator.start(new_pc, stopgap, count = max_ins)
 
-def test_faults(emulator, target_function, fault_injector, fault_setup, is_faulted, max_ins=1000, cli_report=False):	
+
+def test_faults(emulator, path, target_function, fault_injector, fault_setup, is_faulted, max_ins=1000, cli_report=False):	
 	faults = [] 
 	crash_count = 0 
 	stopgap = 0xddddeeee
@@ -122,7 +129,7 @@ def test_faults(emulator, target_function, fault_injector, fault_setup, is_fault
 		elif status == True:
 			# Successful fault: execution reached 'faulted_return' (and did not crash afterwards)
 			addr, _, ins_mnemonic, ins_str = emulator.disassemble_single(pc_stopped, 4)
-			func, file_ = get_addr2line(addr, no_llvm=cli_report)
+			func, file_ = get_addr2line(path, addr, no_llvm=cli_report)
 			if cli_report:
 				emulator.print_asmline(addr, ins_mnemonic, ins_str)
 				print(' <= Faulted', end='')
@@ -141,6 +148,22 @@ def test_faults(emulator, target_function, fault_injector, fault_setup, is_fault
 		print(f"\n[x] Found {clr} {fault_count} \x1b[0m fault{'s'*(fault_count>1)} and {crash_count} crashes.")
 	return faults
 
+
+def cargo_build_test() -> str:
+	"""Call Cargo to build test and return path"""
+	proc = subprocess.run(
+		"cargo test --features test_fi --no-run --release --message-format=json",
+		shell=True,
+		stdout=subprocess.PIPE,
+	)
+	proc.check_returncode()
+	for json_out in proc.stdout.split(b"\n"):
+		data = json.loads(json_out)
+		if data.get("executable") and data.get("target", {}).get("test"):
+			return data.get("executable")
+	raise RuntimeError("Cargo did not return a test executable.")
+
+
 if __name__ == "__main__":
 	import sys
 	from argparse import ArgumentParser
@@ -151,7 +174,8 @@ if __name__ == "__main__":
 	args = argp.parse_args()
 
 	e = rbw()
-	e.load('./target/thumbv6m-none-eabi/release/examples/fi_test', typ='.elf')
+	path = cargo_build_test()
+	e.load(path, typ='.elf')
 	e.trace = False 
 
 	def faulted_return(emu):
@@ -201,7 +225,7 @@ if __name__ == "__main__":
 		for model in [inject_skip, inject_zero, inject_ones]:
 			if args.cli:
 				print(f"[ ] {model.__name__}")
-			res = test_faults(e, func, model, fi_setup, fi_test, cli_report=args.cli)
+			res = test_faults(e, path, func, model, fi_setup, fi_test, cli_report=args.cli)
 			if len(res) > 0:
 				total_faults += [[model, res]]
 
