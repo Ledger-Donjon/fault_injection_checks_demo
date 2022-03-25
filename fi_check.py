@@ -157,12 +157,12 @@ if __name__ == "__main__":
 	def faulted_return(emu):
 		global EXIT_STATUS
 		EXIT_STATUS = True
-		return True
+		return False  # do not skip instruction
 
 	def nominal_behavior(emu):
 		global EXIT_STATUS
 		EXIT_STATUS = False 
-		return True
+		return False  # do not skip instruction
 
 	# Hook to panic, mostly caused by fault injection
 	# rust_begin_unwind is called when panic! happens
