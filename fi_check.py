@@ -180,7 +180,9 @@ if __name__ == "__main__":
 
 	def faulted_return(emu):
 		global EXIT_STATUS
-		EXIT_STATUS = True
+		# ignore faults that are happening after normal behavior
+		if EXIT_STATUS is None:
+			EXIT_STATUS = True
 		return False  # do not skip instruction
 
 	def nominal_behavior(emu):
