@@ -25,6 +25,6 @@ jobs:
           override: true
           target: thumbv6m-none-eabi 
       - name: Install Rainbow
-        run: python3 -m pip install git+https://github.com/Ledger-Donjon/rainbow
+        run: python3 -m pip install git+https://github.com/Ledger-Donjon/rainbow@fix_function_discovery
       - name: Run Fault check
         run: python3 fi_check.py fi_test_hard fi_test_hard2 --cli
