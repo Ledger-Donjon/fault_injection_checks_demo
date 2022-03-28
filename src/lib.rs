@@ -153,7 +153,7 @@ mod tests {
 }
 
 #[cfg(test)]
-mod fi_tests {
+mod tests_fi {
     use super::*;
     use test_fi_macro::test_fi;
 
@@ -215,7 +215,7 @@ pub fn _start() -> ! {
     test_main();
 
     #[cfg(feature = "test_fi")]
-    fi_tests::run_all();
+    tests_fi::run_all();
 
     loop {}
 }

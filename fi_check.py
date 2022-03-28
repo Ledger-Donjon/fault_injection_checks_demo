@@ -207,9 +207,9 @@ if __name__ == "__main__":
 		return inject_stuck_at(a,p,0xffff_ffff)
 
 	# If no functions name were provided, default to all functions beginning
-	# with `fi_test_`
+	# with `test_fi_`
 	if not args.functions:
-		args.functions = [f for f in e.functions.keys() if f.startswith("fi_test_")]
+		args.functions = [f for f in e.functions.keys() if f.startswith("test_fi_")]
 
 	functions_to_test = [e.functions[f] for f in args.functions]
 

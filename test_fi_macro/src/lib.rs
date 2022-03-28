@@ -5,8 +5,8 @@ use quote::{quote, format_ident};
 #[proc_macro_attribute]
 pub fn test_fi(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut input = syn::parse_macro_input!(item as syn::ItemFn);
-    let name = format!("fi_test_{}", &input.sig.ident);
-    let name_nominal_behavior = format_ident!("nominal_behavior_fi_test_{}", &input.sig.ident);
+    let name = format!("test_fi_{}", &input.sig.ident);
+    let name_nominal_behavior = format_ident!("nominal_behavior_test_fi_{}", &input.sig.ident);
 
     // Insert nominal_behavior() call at the end
     input.block.stmts.push(syn::parse(quote!(#name_nominal_behavior();).into()).unwrap());
