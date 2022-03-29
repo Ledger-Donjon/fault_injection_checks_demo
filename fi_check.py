@@ -1,7 +1,11 @@
+import json
+import subprocess
+
 import capstone as cs
-import unicorn as uc 
+import unicorn as uc
 from rainbow.generics import rainbow_arm as rbw
 from addr2line import get_addr2line
+
 
 def inject_skip(emu, current_pc):
 	""" Skip current instruction at 'current_pc' with emulator state 'emu' """
@@ -11,6 +15,7 @@ def inject_skip(emu, current_pc):
 	_, ins_size, _, _ = ins
 	thumb_bit = (emu["cpsr"]>>5) & 1
 	return (current_pc + ins_size) | thumb_bit 
+
 
 def inject_stuck_at(emu, current_pc, value):
 	""" Injects a value in the destination register updated by the current instruction """
@@ -34,6 +39,7 @@ def inject_stuck_at(emu, current_pc, value):
 	thumb_bit = (emu["cpsr"]>>5) & 1
 	ret = current_pc | thumb_bit
 	return ret 
+
 
 def replay_fault(instruction_index, emulator, target_function, fault_injector, max_ins=200):
 	""" Execute function and display instruction trace, while applying fault at 'instruction_index'"""
@@ -61,7 +67,8 @@ def replay_fault(instruction_index, emulator, target_function, fault_injector, m
 	print('<--!', end='\n\n')
 	ret = emulator.start(new_pc, stopgap, count = max_ins)
 
-def test_faults(emulator, target_function, fault_injector, fault_setup, is_faulted, max_ins=1000, cli_report=False):	
+
+def test_faults(emulator, path, target_function, fault_injector, fault_setup, is_faulted, max_ins=1000, cli_report=False):	
 	faults = [] 
 	crash_count = 0 
 	stopgap = 0xddddeeee
@@ -106,9 +113,9 @@ def test_faults(emulator, target_function, fault_injector, fault_setup, is_fault
 				emulator.start(new_pc, stopgap, count = max_ins) 
 			except uc.unicorn.UcError as uc_error:
 				# Crashed after the fault.
-				# This includes cases were 'success' was executed but
+				# This includes cases were 'faulted_return' was executed but
 				# lead to an incorrect state 
-				# However if 'success' represents a permanent decision like
+				# However if 'faulted_return' represents a permanent decision like
 				# updating a flag in non-volatile memory then it is incorrect
 				# to consider this a crash, and this part of the script should
 				# be adapted accordingly (i.e. complete the loop iteration)
@@ -117,12 +124,12 @@ def test_faults(emulator, target_function, fault_injector, fault_setup, is_fault
 
 		status = is_faulted()
 		if status is None:
-			# Execution went astray and never reached either 'success' nor 'fail'
+			# Execution went astray and never reached either 'faulted_return' nor 'nominal_behavior'
 			crash_count += 1
 		elif status == True:
-			# Successful fault: execution reached 'success' (and did not crash afterwards)
+			# Successful fault: execution reached 'faulted_return' (and did not crash afterwards)
 			addr, _, ins_mnemonic, ins_str = emulator.disassemble_single(pc_stopped, 4)
-			func, file_ = get_addr2line(addr, no_llvm=cli_report)
+			func, file_ = get_addr2line(path, addr, no_llvm=cli_report)
 			if cli_report:
 				emulator.print_asmline(addr, ins_mnemonic, ins_str)
 				print(' <= Faulted', end='')
@@ -141,31 +148,51 @@ def test_faults(emulator, target_function, fault_injector, fault_setup, is_fault
 		print(f"\n[x] Found {clr} {fault_count} \x1b[0m fault{'s'*(fault_count>1)} and {crash_count} crashes.")
 	return faults
 
+
+def cargo_build_test() -> str:
+	"""Call Cargo to build test and return path"""
+	proc = subprocess.run(
+		"cargo test --features test_fi --no-run --release --message-format=json",
+		shell=True,
+		stdout=subprocess.PIPE,
+	)
+	proc.check_returncode()
+	for json_out in proc.stdout.split(b"\n"):
+		data = json.loads(json_out)
+		if data.get("executable") and data.get("target", {}).get("test"):
+			return data.get("executable")
+	raise RuntimeError("Cargo did not return a test executable.")
+
+
 if __name__ == "__main__":
 	import sys
 	from argparse import ArgumentParser
 	argp = ArgumentParser()
-	argp.add_argument('functions', nargs='+', help="functions to be scanned")
-	argp.add_argument('--cli', action='store_const', const=True, default=False, help="Produce report in command line.")
-	argp.add_argument('-r', '--replay', action='store_const', const=True, default=False, help="Replay found faults with instruction trace.")
+	argp.add_argument('functions', nargs='*', help="functions to scan, default to all")
+	argp.add_argument('--cli', action='store_const', const=True, default=False, help="produce report in command line")
+	argp.add_argument('-r', '--replay', action='store_const', const=True, default=False, help="replay found faults with instruction trace")
 	args = argp.parse_args()
 
 	e = rbw()
-	e.load('./target/thumbv6m-none-eabi/release/examples/fi_test', typ='.elf')
+	path = cargo_build_test()
+	e.load(path, typ='.elf')
 	e.trace = False 
 
-	def success(emu):
+	def faulted_return(emu):
 		global EXIT_STATUS
-		EXIT_STATUS = True
-		return True
+		# ignore faults that are happening after normal behavior
+		if EXIT_STATUS is None:
+			EXIT_STATUS = True
+		return False  # do not skip instruction
 
-	def fail(emu):
+	def nominal_behavior(emu):
 		global EXIT_STATUS
 		EXIT_STATUS = False 
-		return True
+		return False  # do not skip instruction
 
-	e.stubbed_functions['fail'] = fail 
-	e.stubbed_functions['success'] = success 
+	# Hook to panic, mostly caused by fault injection
+	# rust_begin_unwind is called when panic! happens
+	e.stubbed_functions['rust_begin_unwind'] = faulted_return
 
 	def fi_setup():
 		global EXIT_STATUS
@@ -181,16 +208,26 @@ if __name__ == "__main__":
 	def inject_ones(a,p):
 		return inject_stuck_at(a,p,0xffff_ffff)
 
+	# If no functions name were provided, default to all functions beginning
+	# with `test_fi_`
+	if not args.functions:
+		args.functions = [f for f in e.functions.keys() if f.startswith("test_fi_")]
+
 	functions_to_test = [e.functions[f] for f in args.functions]
 
 	total_faults = [] 
 	for func in functions_to_test:
+		# Hook to a function appended to the end of the test
+		# This is used to check if the fault makes the function return
+		name = e.function_names[func]
+		e.stubbed_functions[f'nominal_behavior_{name}'] = nominal_behavior
+
 		if args.cli:
-			print(f'\n* Testing \x1b[1;35m{e.function_names[func]}\x1b[0m') 
+			print(f'\n* Testing \x1b[1;35m{name}\x1b[0m')
 		for model in [inject_skip, inject_zero, inject_ones]:
 			if args.cli:
 				print(f"[ ] {model.__name__}")
-			res = test_faults(e, func, model, fi_setup, fi_test, cli_report=args.cli)
+			res = test_faults(e, path, func, model, fi_setup, fi_test, cli_report=args.cli)
 			if len(res) > 0:
 				total_faults += [[model, res]]
 

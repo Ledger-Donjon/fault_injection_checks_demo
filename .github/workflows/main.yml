@@ -24,12 +24,10 @@ jobs:
           toolchain: nightly
           override: true
           target: thumbv6m-none-eabi 
-      - name: Cargo build
-        uses: actions-rs/cargo@v1
+      - uses: actions/setup-python@v3
         with:
-          command: build 
-          args: --target=thumbv6m-none-eabi --release --example fi_test
+          python-version: '3.8'
       - name: Install Rainbow
-        run: python3 -m pip install git+https://github.com/Ledger-Donjon/rainbow
+        run: python3 -m pip install git+https://github.com/Ledger-Donjon/rainbow@fix_function_discovery
       - name: Run Fault check
-        run: python3 fi_check.py fi_test_hard fi_test_hard2 --cli
+        run: python3 fi_check.py test_fi_hard test_fi_hard2 --cli

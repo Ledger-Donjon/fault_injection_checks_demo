@@ -1,13 +1,17 @@
 [package]
 name = "pin_verif"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
+
+[features]
+test_fi = []
 
 [dependencies]
 cortex-m-semihosting = "0.3.7"
 
 [dev-dependencies]
 testmacro = { git = "https://github.com/yhql/testmacro"}
+test_fi_macro = { path = "test_fi_macro" }
 
 [profile.dev]
 panic = "abort"
@@ -15,7 +19,3 @@ panic = "abort"
 [profile.release]
 panic = "abort"
 opt-level = 's'
-
-[[example]]
-name = "fi_test"
-test = false
