@@ -24,6 +24,9 @@ jobs:
           toolchain: nightly
           override: true
           target: thumbv6m-none-eabi 
+      - uses: actions/setup-python@v3
+        with:
+          python-version: '3.8'
       - name: Install Rainbow
         run: python3 -m pip install git+https://github.com/Ledger-Donjon/rainbow@fix_function_discovery
       - name: Run Fault check
