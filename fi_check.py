@@ -98,7 +98,7 @@ def test_faults(emulator, path, target_function, fault_injector, fault_setup, is
 
 		# Only if we haven't already reached
 		# the end of the execution
-		if pc_stopped == stopgap:
+		if pc_stopped == stopgap or is_faulted() is not None:
 			# current 'i' hits after the function has ended
 			# No more tests to do
 			break
@@ -188,6 +188,7 @@ if __name__ == "__main__":
 	def nominal_behavior(emu):
 		global EXIT_STATUS
 		EXIT_STATUS = False 
+		emu.emu.emu_stop()
 		return False  # do not skip instruction
 
 	# Hook to panic, mostly caused by fault injection
