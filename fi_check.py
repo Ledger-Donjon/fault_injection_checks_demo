@@ -89,10 +89,10 @@ def test_faults(emulator, path, target_function, fault_injector, fault_setup, is
 		emulator['lr'] = stopgap
 
 		try:
-			emulator.start(target_function, stopgap, count = i)
-		except uc.unicorn.UcError as uc_error:
-			crash_count += 1
-			continue	
+			if emulator.start(target_function, stopgap, count=i):
+				raise RuntimeError()
+		except (uc.unicorn.UcError, RuntimeError) as e:
+			raise RuntimeError(f"Emulator crashed before faulting") from e
 
 		pc_stopped = emulator['pc']
 
