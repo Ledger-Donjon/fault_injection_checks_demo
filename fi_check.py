@@ -1,45 +1,35 @@
 import json
 import subprocess
-from typing import Callable, Optional, Tuple
+from typing import Optional
 
 import capstone as cs
 from rainbow.generics import rainbow_arm
 from addr2line import get_addr2line
 
 
-def setup_emulator(path: str, target_function: Optional[int]) -> Tuple[rainbow_arm, Callable, Callable]:
+def setup_emulator(path: str, target_function: Optional[int]) -> rainbow_arm:
 	"""Setup emulation and hooks around targeted fault injection test in
 	executable.
 
 	:param str path: Path of the ELF file to audit
 	:param Optional[int] target_function: Address of the fault injection test,
 		can be None to skip hook setup.
-	:return Tuple[rainbow_arm, Callable, Callable]: Rainbow instance and helpers
+	:return rainbow_arm: Rainbow instance
 	"""
 	emu = rainbow_arm()
 	emu.load(path, typ=".elf")
 	emu.trace = False
 
-	def faulted_return(_emu: rainbow_arm) -> bool:
-		global EXIT_STATUS
+	def faulted_return(emu: rainbow_arm) -> bool:
 		# ignore faults that are happening after normal behavior
-		if EXIT_STATUS is None:
-			EXIT_STATUS = True
+		if emu.meta["exit_status"] is None:
+			emu.meta["exit_status"] = True
 		return False  # do not skip instruction
 
 	def nominal_behavior(emu: rainbow_arm) -> bool:
-		global EXIT_STATUS
-		EXIT_STATUS = False
+		emu.meta["exit_status"] = False
 		emu.emu.emu_stop()
 		return False  # do not skip instruction
-
-	def fault_setup():
-		global EXIT_STATUS
-		EXIT_STATUS = None
-
-	def is_faulted() -> bool:
-		global EXIT_STATUS
-		return EXIT_STATUS
 
 	# Hook to panic, mostly caused by fault injection
 	# rust_begin_unwind is called when panic happens
@@ -54,7 +44,7 @@ def setup_emulator(path: str, target_function: Optional[int]) -> Tuple[rainbow_a
 	# Place an invalid instruction at 0 to detect corrupted stacks
 	emu[0] = 0xffffffff
 
-	return emu, fault_setup, is_faulted
+	return emu
 
 
 def inject_skip(emu, current_pc):
@@ -120,11 +110,14 @@ def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=
 	stopgap = 0xddddeeee
 
 	# Setup emulator
-	emulator, fault_setup, is_faulted = setup_emulator(path, target_function)
+	emulator = setup_emulator(path, target_function)
 	emulator[stopgap:stopgap+max_ins] = 0
 
 	for i in range(1, max_ins):
-		fault_setup()
+		# Init exit_status state
+		emulator.meta = {}
+		emulator.meta["exit_status"] = None
+
 		emulator.reset()
 
 		# Also reset disassembler to thumb mode
@@ -140,7 +133,7 @@ def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=
 
 		# Only if we haven't already reached
 		# the end of the execution
-		if pc_stopped == stopgap or is_faulted() is not None:
+		if pc_stopped == stopgap or emulator.meta["exit_status"] is not None:
 			# current 'i' hits after the function has ended
 			# No more tests to do
 			break
@@ -163,15 +156,14 @@ def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=
 				crash_count += 1
 
 				# Fully reset emulator
-				emulator, fault_setup, is_faulted = setup_emulator(path, target_function)
+				emulator = setup_emulator(path, target_function)
 				emulator[stopgap:stopgap+max_ins] = 0
 				continue
 
-		status = is_faulted()
-		if status is None:
+		if emulator.meta["exit_status"] is None:
 			# Execution went astray and never reached either 'faulted_return' nor 'nominal_behavior'
 			crash_count += 1
-		elif status == True:
+		elif emulator.meta["exit_status"] == True:
 			# Successful fault: execution reached 'faulted_return' (and did not crash afterwards)
 			addr, _, ins_mnemonic, ins_str = emulator.disassemble_single(pc_stopped, 4)
 			func, file_ = get_addr2line(path, addr, no_llvm=cli_report)
@@ -218,14 +210,15 @@ if __name__ == "__main__":
 	argp.add_argument('-r', '--replay', action='store_const', const=True, default=False, help="replay found faults with instruction trace")
 	args = argp.parse_args()
 
-	path = cargo_build_test()
-	e, _, _ = setup_emulator(path, None)
-
 	def inject_zero(a,p):
 		return inject_stuck_at(a,p,0)
 
 	def inject_ones(a,p):
 		return inject_stuck_at(a,p,0xffff_ffff)
+
+	# Build emulator
+	path = cargo_build_test()
+	e = setup_emulator(path, None)
 
 	# If no functions name were provided, default to all functions beginning
 	# with `test_fi_`
