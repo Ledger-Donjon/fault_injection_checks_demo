@@ -1,9 +1,14 @@
 [target.thumbv6m-none-eabi]
-rustflags = [ 
+rustflags = [
   "-C", "link-arg=-Tscript.ld",
-  "-C", "debuginfo=1",
-  ]
+]
 runner = "qemu-system-arm -machine netduino2 -semihosting -nographic -kernel"
+
+[target.thumbv7m-none-eabi]
+rustflags = [
+  "-C", "link-arg=-Tscript.ld",
+]
+runner = "qemu-system-arm -machine lm3s6965evb -semihosting -nographic -kernel"
 
 [build]
 target = "thumbv6m-none-eabi"

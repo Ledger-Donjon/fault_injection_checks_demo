@@ -19,3 +19,4 @@ panic = "abort"
 [profile.release]
 panic = "abort"
 opt-level = 's'
+debug = true # symbols don't increase the size on Flash

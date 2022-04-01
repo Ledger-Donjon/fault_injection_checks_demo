@@ -1,0 +1,28 @@
+[package]
+name = "pincomp-tvla"
+version = "0.0.0"
+authors = ["Automatically generated"]
+publish = false
+edition = "2021"
+
+[dependencies]
+cortex-m = "0.6.0"
+panic-halt = "0.2.0"
+aes = "0.8.1"
+unroll = "0.1"
+
+[dependencies.pin_verif]
+path = ".."
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[profile.release]
+debug = true # symbols don't increase the size on Flash
+
+[[bin]]
+name = "tvla_target_rustcrypto_aes"
+path = "tvla_targets/tvla_target_rustcrypto_aes.rs"
+test = false
+doc = false
