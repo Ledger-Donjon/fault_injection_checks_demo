@@ -133,5 +133,5 @@ if __name__ == "__main__":
 
         n = 100
         ttest = tvla(emu, n, 42)
-        np.savetxt(f"{target_name}_{n}.csv", ttest)
+        np.savetxt(f"tvla/ttests/{target_name}_{n}.csv", ttest)
         np.nan_to_num(ttest, copy=False)
