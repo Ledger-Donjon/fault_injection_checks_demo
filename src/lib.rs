@@ -161,40 +161,40 @@ mod tests_fi {
     const CORRECT_PIN_PROTECTED: crate::IntegrityProtected<[u8; 4]> =
         crate::IntegrityProtected([1, 2, 3, 4]);
 
-    #[export_name = "test_fi_simple"]
+    #[no_mangle]
     #[inline(never)]
-    fn simple() {
+    fn test_fi_simple() {
         assert_eq!(compare_pin(&[0; 4], &CORRECT_PIN), false);
     }
 
-    #[export_name = "test_fi_double"]
+    #[no_mangle]
     #[inline(never)]
-    fn double() {
+    fn test_fi_double() {
         let user_pin = [0; 4];
         assert_eq!(compare_pin_double(&user_pin, &CORRECT_PIN), false);
     }
 
-    #[export_name = "test_fi_simple_fp"]
+    #[no_mangle]
     #[inline(never)]
-    fn simple_fp() {
+    fn test_fi_simple_fp() {
         assert_eq!(compare_pin_fp(&[0; 4], &CORRECT_PIN), false);
     }
 
-    #[export_name = "test_fi_simple_fp2"]
+    #[no_mangle]
     #[inline(never)]
-    fn simple_fp2() {
+    fn test_fi_simple_fp2() {
         assert_eq!(compare_pin_fp(&[1, 0, 0, 0], &CORRECT_PIN), false);
     }
 
-    #[export_name = "test_fi_hard"]
+    #[no_mangle]
     #[inline(never)]
-    fn hard() {
+    fn test_fi_hard() {
         assert_eq!((CORRECT_PIN_PROTECTED == &[0; 4]), false);
     }
 
-    #[export_name = "test_fi_hard2"]
+    #[no_mangle]
     #[inline(never)]
-    fn hard2() {
+    fn test_fi_hard2() {
         let ref_pin = crate::IntegrityProtected([
             1, 8, 9, 2, 3, 1, 3, 2, 1, 0, 2, 23, 29381, 281, 283, 172, 381, 280,
         ]);
@@ -204,12 +204,12 @@ mod tests_fi {
     #[cfg(feature = "test_fi")]
     pub fn run_all() {
         use cortex_m_semihosting::debug::{self, EXIT_SUCCESS};
-        simple();
-        double();
-        simple_fp();
-        simple_fp2();
-        hard();
-        hard2();
+        test_fi_simple();
+        test_fi_double();
+        test_fi_simple_fp();
+        test_fi_simple_fp2();
+        test_fi_hard();
+        test_fi_hard2();
         debug::exit(EXIT_SUCCESS);
     }
 }
