@@ -27,12 +27,13 @@ fn panic(info: &PanicInfo) -> ! {
 /// where it is explicitly called twice to avoid single faults.
 #[inline(never)]
 pub fn compare_pin(user_pin: &[u8], ref_pin: &[u8]) -> bool {
-    for (digit_user, digit_ref) in user_pin.iter().zip(ref_pin.iter()) {
-        if digit_user != digit_ref {
-            return false;
+    let mut good = true;
+    for i in 0..ref_pin.len() {
+        if user_pin[i] != ref_pin[i] {
+            good = false;
         }
     }
-    true
+    good
 }
 
 /// The easy way to fix against single fault injections. Does it work?
