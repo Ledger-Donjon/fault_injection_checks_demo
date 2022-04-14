@@ -45,6 +45,16 @@ pub fn compare_pin_double(user_pin: &[u8], ref_pin: &[u8]) -> bool {
     }
 }
 
+/// The easy way to fix against single fault injections. Does it work?
+#[inline(always)]
+pub fn compare_pin_double_inline(user_pin: &[u8], ref_pin: &[u8]) -> bool {
+    if compare_pin(user_pin, ref_pin) {
+        compare_pin(ref_pin, user_pin)
+    } else {
+        false
+    }
+}
+
 /// This one is out of curiosity because it is difficult (to me) to anticipate
 /// how this will be compiled and how it would naturally resist to attacks.
 /// Also contains an otherwise important fix: it does not have an early exit
@@ -176,6 +186,13 @@ mod tests_fi {
 
     #[no_mangle]
     #[inline(never)]
+    fn test_fi_double_inline() {
+        let user_pin = [0; 4];
+        assert_eq!(compare_pin_double_inline(&user_pin, &CORRECT_PIN), false);
+    }
+
+    #[no_mangle]
+    #[inline(never)]
     fn test_fi_simple_fp() {
         assert_eq!(compare_pin_fp(&[0; 4], &CORRECT_PIN), false);
     }
@@ -206,6 +223,7 @@ mod tests_fi {
         use cortex_m_semihosting::debug::{self, EXIT_SUCCESS};
         test_fi_simple();
         test_fi_double();
+        test_fi_double_inline();
         test_fi_simple_fp();
         test_fi_simple_fp2();
         test_fi_hard();
