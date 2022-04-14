@@ -22,26 +22,24 @@ def setup_emulator(path: str, target_function: Optional[int]) -> rainbow_arm:
 	emu.load(path, typ=".elf")
 	emu.trace = False
 
-	def faulted_return(emu: rainbow_arm) -> bool:
+	def faulted_return(emu: rainbow_arm):
 		# ignore faults that are happening after normal behavior
 		if emu.meta["exit_status"] is None:
 			emu.meta["exit_status"] = True
-		return False  # do not skip instruction
 
-	def nominal_behavior(emu: rainbow_arm) -> bool:
+	def nominal_behavior(emu: rainbow_arm):
 		emu.meta["exit_status"] = False
 		emu.emu.emu_stop()
-		return False  # do not skip instruction
 
 	# Hook to panic, mostly caused by fault injection
 	# rust_begin_unwind is called when panic happens
-	emu.stubbed_functions["rust_begin_unwind"] = faulted_return
+	emu.hook_prolog("rust_begin_unwind", faulted_return)
 
 	# Hook to a function appended to the end of the test
 	# This is used to check if the fault makes the function return
 	if target_function is not None:
 		name = emu.function_names[target_function]
-		emu.stubbed_functions[f"nominal_behavior_{name}"] = nominal_behavior
+		emu.hook_prolog(f"nominal_behavior_{name}", nominal_behavior)
 
 	# Place an invalid instruction at 0 to detect corrupted stacks
 	emu[0] = 0xffffffff
