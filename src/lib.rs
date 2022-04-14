@@ -68,6 +68,16 @@ pub fn compare_pin_fp(user_pin: &[u8], ref_pin: &[u8]) -> bool {
         == 0
 }
 
+/// Variant which is a bit more robust
+#[inline(never)]
+pub fn compare_pin_fp_variant(user_pin: &[u8], ref_pin: &[u8]) -> bool {
+    user_pin
+        .iter()
+        .zip(ref_pin.iter())
+        .fold(true, |acc, (a, b)| acc & (a == b))
+        == true
+}
+
 /// The goal of this library would be to provide a comparison function
 /// that is tested against faults in a continuous integration manner.
 /// The better way to provide it would be as a special type/struct
@@ -205,6 +215,12 @@ mod tests_fi {
 
     #[no_mangle]
     #[inline(never)]
+    fn test_fi_simple_fp_variant() {
+        assert_eq!(compare_pin_fp_variant(&[0; 4], &CORRECT_PIN), false);
+    }
+
+    #[no_mangle]
+    #[inline(never)]
     fn test_fi_hard() {
         assert_eq!((CORRECT_PIN_PROTECTED == &[0; 4]), false);
     }
@@ -226,6 +242,7 @@ mod tests_fi {
         test_fi_double_inline();
         test_fi_simple_fp();
         test_fi_simple_fp2();
+        test_fi_simple_fp_variant();
         test_fi_hard();
         test_fi_hard2();
         debug::exit(EXIT_SUCCESS);
