@@ -11,7 +11,7 @@ cortex-m-semihosting = "0.3.7"
 
 [dev-dependencies]
 testmacro = { git = "https://github.com/yhql/testmacro"}
-test_fi_macro = { path = "test_fi_macro" }
+rust_fi = { path = "rust_fi" }
 
 [profile.dev]
 panic = "abort"

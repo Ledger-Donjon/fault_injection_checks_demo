@@ -155,39 +155,45 @@ mod tests {
 #[cfg(test)]
 mod tests_fi {
     use super::*;
-    use test_fi_macro::test_fi;
+    use rust_fi::{assert_eq, rust_fi_nominal_behavior, rust_fi_faulted_behavior};
 
     const CORRECT_PIN: [u8; 4] = [1, 2, 3, 4];
     const CORRECT_PIN_PROTECTED: crate::IntegrityProtected<[u8; 4]> =
         crate::IntegrityProtected([1, 2, 3, 4]);
 
-    #[test_fi]
+    #[export_name = "test_fi_simple"]
+    #[inline(never)]
     fn simple() {
         assert_eq!(compare_pin(&[0; 4], &CORRECT_PIN), false);
     }
 
-    #[test_fi]
+    #[export_name = "test_fi_double"]
+    #[inline(never)]
     fn double() {
         let user_pin = [0; 4];
         assert_eq!(compare_pin_double(&user_pin, &CORRECT_PIN), false);
     }
 
-    #[test_fi]
+    #[export_name = "test_fi_simple_fp"]
+    #[inline(never)]
     fn simple_fp() {
         assert_eq!(compare_pin_fp(&[0; 4], &CORRECT_PIN), false);
     }
 
-    #[test_fi]
+    #[export_name = "test_fi_simple_fp2"]
+    #[inline(never)]
     fn simple_fp2() {
         assert_eq!(compare_pin_fp(&[1, 0, 0, 0], &CORRECT_PIN), false);
     }
 
-    #[test_fi]
+    #[export_name = "test_fi_hard"]
+    #[inline(never)]
     fn hard() {
         assert_eq!((CORRECT_PIN_PROTECTED == &[0; 4]), false);
     }
 
-    #[test_fi]
+    #[export_name = "test_fi_hard2"]
+    #[inline(never)]
     fn hard2() {
         let ref_pin = crate::IntegrityProtected([
             1, 8, 9, 2, 3, 1, 3, 2, 1, 0, 2, 23, 29381, 281, 283, 172, 381, 280,

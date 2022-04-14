@@ -2,44 +2,37 @@
 
 import json
 import subprocess
-from typing import Optional
 
 import capstone as cs
 from rainbow.generics import rainbow_arm
 from addr2line import get_addr2line
 
 
-def setup_emulator(path: str, target_function: Optional[int]) -> rainbow_arm:
+def setup_emulator(path: str) -> rainbow_arm:
 	"""Setup emulation and hooks around targeted fault injection test in
 	executable.
 
 	:param str path: Path of the ELF file to audit
-	:param Optional[int] target_function: Address of the fault injection test,
-		can be None to skip hook setup.
 	:return rainbow_arm: Rainbow instance
 	"""
 	emu = rainbow_arm()
 	emu.load(path, typ=".elf")
 	emu.trace = False
 
-	def faulted_return(emu: rainbow_arm):
+	def faulted_behavior(emu: rainbow_arm):
 		# ignore faults that are happening after normal behavior
 		if emu.meta["exit_status"] is None:
 			emu.meta["exit_status"] = True
-
-	def nominal_behavior(emu: rainbow_arm):
-		emu.meta["exit_status"] = False
 		emu.emu.emu_stop()
 
-	# Hook to panic, mostly caused by fault injection
-	# rust_begin_unwind is called when panic happens
-	emu.hook_prolog("rust_begin_unwind", faulted_return)
+	def nominal_behavior(emu: rainbow_arm):
+		if emu.meta["exit_status"] is None:
+			emu.meta["exit_status"] = False
+		emu.emu.emu_stop()
 
-	# Hook to a function appended to the end of the test
-	# This is used to check if the fault makes the function return
-	if target_function is not None:
-		name = emu.function_names[target_function]
-		emu.hook_prolog(f"nominal_behavior_{name}", nominal_behavior)
+	# Hook to normal and faulted behavior
+	emu.hook_prolog("rust_fi_faulted_behavior", faulted_behavior)
+	emu.hook_prolog("rust_fi_nominal_behavior", nominal_behavior)
 
 	# Place an invalid instruction at 0 to detect corrupted stacks
 	emu[0] = 0xffffffff
@@ -110,7 +103,7 @@ def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=
 	stopgap = 0xddddeeee
 
 	# Setup emulator
-	emulator = setup_emulator(path, target_function)
+	emulator = setup_emulator(path)
 	emulator[stopgap:stopgap+max_ins] = 0
 
 	for i in range(1, max_ins):
@@ -156,7 +149,7 @@ def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=
 				crash_count += 1
 
 				# Fully reset emulator
-				emulator = setup_emulator(path, target_function)
+				emulator = setup_emulator(path)
 				emulator[stopgap:stopgap+max_ins] = 0
 				continue
 
@@ -218,7 +211,7 @@ if __name__ == "__main__":
 
 	# Build emulator
 	path = cargo_build_test()
-	e = setup_emulator(path, None)
+	e = setup_emulator(path)
 
 	# If no functions name were provided, default to all functions beginning
 	# with `test_fi_`
