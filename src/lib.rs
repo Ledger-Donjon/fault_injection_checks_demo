@@ -4,6 +4,7 @@
 #![reexport_test_harness_main = "test_main"]
 #![test_runner(test_utils::test_runner)]
 
+pub mod bool_protected;
 pub mod qemu;
 
 #[cfg(test)]
