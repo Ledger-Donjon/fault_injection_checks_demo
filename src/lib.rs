@@ -138,9 +138,7 @@ impl<T: PartialEq> PartialEq<&T> for IntegrityProtected<T> {
                 true
             } else {
                 // Can only reach this branch when faulted
-                // perhaps a `panic!()` is more appropriate
-                // or an infinite loop, ...
-                false
+                panic!("fault")
             }
         } else {
             false
