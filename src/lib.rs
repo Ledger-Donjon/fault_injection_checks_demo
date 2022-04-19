@@ -10,6 +10,7 @@ pub mod qemu;
 #[cfg(test)]
 mod test_utils;
 
+use bool_protected::BoolProtected;
 use core::panic::PanicInfo;
 
 /// With the panic handler being `#[inline(never)]` the symbol
@@ -57,6 +58,17 @@ pub fn compare_pin_double_inline(user_pin: &[u8], ref_pin: &[u8]) -> bool {
     }
 }
 
+#[inline(never)]
+pub fn compare_pin_protected(user_pin: &[u8], ref_pin: &[u8]) -> BoolProtected {
+    let mut good = BoolProtected::from(true);
+    for i in 0..ref_pin.len() {
+        if user_pin[i] != ref_pin[i] {
+            good = BoolProtected::from(false);
+        }
+    }
+    good
+}
+
 /// This one is out of curiosity because it is difficult (to me) to anticipate
 /// how this will be compiled and how it would naturally resist to attacks.
 /// Also contains an otherwise important fix: it does not have an early exit
@@ -77,7 +89,21 @@ pub fn compare_pin_fp_variant(user_pin: &[u8], ref_pin: &[u8]) -> bool {
         .iter()
         .zip(ref_pin.iter())
         .fold(true, |acc, (a, b)| acc & (a == b))
-        == true
+}
+
+/// Variant using BoolProtected
+#[inline(never)]
+pub fn compare_pin_fp_protected(user_pin: &[u8], ref_pin: &[u8]) -> BoolProtected {
+    if ref_pin.is_empty() || user_pin.len() != ref_pin.len(){
+        return BoolProtected::from(false);
+    }
+
+    !user_pin
+        .iter()
+        .zip(ref_pin.iter())
+        .fold(BoolProtected::from(false), |acc, (a, b)| {
+            acc | BoolProtected::from(a != b)
+        })
 }
 
 /// The goal of this library would be to provide a comparison function
@@ -177,7 +203,7 @@ mod tests {
 #[cfg(test)]
 mod tests_fi {
     use super::*;
-    use rust_fi::{assert_eq, rust_fi_nominal_behavior, rust_fi_faulted_behavior};
+    use rust_fi::{assert_eq, rust_fi_faulted_behavior, rust_fi_nominal_behavior};
 
     const CORRECT_PIN: [u8; 4] = [1, 2, 3, 4];
     const CORRECT_PIN_PROTECTED: crate::IntegrityProtected<[u8; 4]> =
@@ -205,6 +231,13 @@ mod tests_fi {
 
     #[no_mangle]
     #[inline(never)]
+    fn test_fi_simple_protected() {
+        let user_pin = [0; 4];
+        assert_eq!(compare_pin_protected(&user_pin, &CORRECT_PIN), BoolProtected::from(false));
+    }
+
+    #[no_mangle]
+    #[inline(never)]
     fn test_fi_simple_fp() {
         assert_eq!(compare_pin_fp(&[0; 4], &CORRECT_PIN), false);
     }
@@ -219,6 +252,15 @@ mod tests_fi {
     #[inline(never)]
     fn test_fi_simple_fp_variant() {
         assert_eq!(compare_pin_fp_variant(&[0; 4], &CORRECT_PIN), false);
+    }
+
+    #[no_mangle]
+    #[inline(never)]
+    fn test_fi_simple_fp_protected() {
+        assert_eq!(
+            compare_pin_fp_protected(&[0; 4], &CORRECT_PIN),
+            BoolProtected::from(false)
+        );
     }
 
     #[no_mangle]
@@ -242,9 +284,11 @@ mod tests_fi {
         test_fi_simple();
         test_fi_double();
         test_fi_double_inline();
+        test_fi_simple_protected();
         test_fi_simple_fp();
         test_fi_simple_fp2();
         test_fi_simple_fp_variant();
+        test_fi_simple_fp_protected();
         test_fi_hard();
         test_fi_hard2();
         debug::exit(EXIT_SUCCESS);
