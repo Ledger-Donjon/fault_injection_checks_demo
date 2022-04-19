@@ -4,6 +4,7 @@
 #![reexport_test_harness_main = "test_main"]
 #![test_runner(test_utils::test_runner)]
 
+pub mod bool_protected;
 pub mod qemu;
 
 #[cfg(test)]
@@ -27,17 +28,28 @@ fn panic(info: &PanicInfo) -> ! {
 /// where it is explicitly called twice to avoid single faults.
 #[inline(never)]
 pub fn compare_pin(user_pin: &[u8], ref_pin: &[u8]) -> bool {
-    for (digit_user, digit_ref) in user_pin.iter().zip(ref_pin.iter()) {
-        if digit_user != digit_ref {
-            return false;
+    let mut good = true;
+    for i in 0..ref_pin.len() {
+        if user_pin[i] != ref_pin[i] {
+            good = false;
         }
     }
-    true
+    good
 }
 
 /// The easy way to fix against single fault injections. Does it work?
 #[inline(never)]
 pub fn compare_pin_double(user_pin: &[u8], ref_pin: &[u8]) -> bool {
+    if compare_pin(user_pin, ref_pin) {
+        compare_pin(ref_pin, user_pin)
+    } else {
+        false
+    }
+}
+
+/// The easy way to fix against single fault injections. Does it work?
+#[inline(always)]
+pub fn compare_pin_double_inline(user_pin: &[u8], ref_pin: &[u8]) -> bool {
     if compare_pin(user_pin, ref_pin) {
         compare_pin(ref_pin, user_pin)
     } else {
@@ -56,6 +68,16 @@ pub fn compare_pin_fp(user_pin: &[u8], ref_pin: &[u8]) -> bool {
         .zip(ref_pin.iter())
         .fold(0, |acc, (a, b)| acc | (a ^ b))
         == 0
+}
+
+/// Variant which is a bit more robust
+#[inline(never)]
+pub fn compare_pin_fp_variant(user_pin: &[u8], ref_pin: &[u8]) -> bool {
+    user_pin
+        .iter()
+        .zip(ref_pin.iter())
+        .fold(true, |acc, (a, b)| acc & (a == b))
+        == true
 }
 
 /// The goal of this library would be to provide a comparison function
@@ -155,40 +177,59 @@ mod tests {
 #[cfg(test)]
 mod tests_fi {
     use super::*;
-    use test_fi_macro::test_fi;
+    use rust_fi::{assert_eq, rust_fi_nominal_behavior, rust_fi_faulted_behavior};
 
     const CORRECT_PIN: [u8; 4] = [1, 2, 3, 4];
     const CORRECT_PIN_PROTECTED: crate::IntegrityProtected<[u8; 4]> =
         crate::IntegrityProtected([1, 2, 3, 4]);
 
-    #[test_fi]
-    fn simple() {
+    #[no_mangle]
+    #[inline(never)]
+    fn test_fi_simple() {
         assert_eq!(compare_pin(&[0; 4], &CORRECT_PIN), false);
     }
 
-    #[test_fi]
-    fn double() {
+    #[no_mangle]
+    #[inline(never)]
+    fn test_fi_double() {
         let user_pin = [0; 4];
         assert_eq!(compare_pin_double(&user_pin, &CORRECT_PIN), false);
     }
 
-    #[test_fi]
-    fn simple_fp() {
+    #[no_mangle]
+    #[inline(never)]
+    fn test_fi_double_inline() {
+        let user_pin = [0; 4];
+        assert_eq!(compare_pin_double_inline(&user_pin, &CORRECT_PIN), false);
+    }
+
+    #[no_mangle]
+    #[inline(never)]
+    fn test_fi_simple_fp() {
         assert_eq!(compare_pin_fp(&[0; 4], &CORRECT_PIN), false);
     }
 
-    #[test_fi]
-    fn simple_fp2() {
+    #[no_mangle]
+    #[inline(never)]
+    fn test_fi_simple_fp2() {
         assert_eq!(compare_pin_fp(&[1, 0, 0, 0], &CORRECT_PIN), false);
     }
 
-    #[test_fi]
-    fn hard() {
+    #[no_mangle]
+    #[inline(never)]
+    fn test_fi_simple_fp_variant() {
+        assert_eq!(compare_pin_fp_variant(&[0; 4], &CORRECT_PIN), false);
+    }
+
+    #[no_mangle]
+    #[inline(never)]
+    fn test_fi_hard() {
         assert_eq!((CORRECT_PIN_PROTECTED == &[0; 4]), false);
     }
 
-    #[test_fi]
-    fn hard2() {
+    #[no_mangle]
+    #[inline(never)]
+    fn test_fi_hard2() {
         let ref_pin = crate::IntegrityProtected([
             1, 8, 9, 2, 3, 1, 3, 2, 1, 0, 2, 23, 29381, 281, 283, 172, 381, 280,
         ]);
@@ -198,12 +239,14 @@ mod tests_fi {
     #[cfg(feature = "test_fi")]
     pub fn run_all() {
         use cortex_m_semihosting::debug::{self, EXIT_SUCCESS};
-        simple();
-        double();
-        simple_fp();
-        simple_fp2();
-        hard();
-        hard2();
+        test_fi_simple();
+        test_fi_double();
+        test_fi_double_inline();
+        test_fi_simple_fp();
+        test_fi_simple_fp2();
+        test_fi_simple_fp_variant();
+        test_fi_hard();
+        test_fi_hard2();
         debug::exit(EXIT_SUCCESS);
     }
 }
