@@ -7,10 +7,13 @@ use core::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, 
 // False is represented by 0b01100110 and true by 0b00101010.
 // If during an operation an unexpected value is found, panic will be raised.
 #[derive(Clone, Copy, Eq)]
-pub struct BoolProtected(u8);
+pub struct BoolProtected(u32);
 
-const TRUE: u8 = 0b00101010;
-const FALSE: u8 = 0b01100110;
+// TRUE is not the opposite of FALSE to force the compiler to no use NEG
+// First and last bit is 0, in case of boolean casting
+// One is not the shift of the other one, in case of shifting
+const TRUE: u32 = 0b0010_1010_1010_1010_1010_1110_1010_1010;
+const FALSE: u32 = 0b0110_0101_0101_0110_1100_0011_0101_1100;
 
 impl From<BoolProtected> for bool {
     #[inline(always)]
