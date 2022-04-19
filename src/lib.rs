@@ -88,12 +88,12 @@ pub fn compare_pin_fp_variant(user_pin: &[u8], ref_pin: &[u8]) -> bool {
 /// or at the right place.
 /// The user would only need to wrap the sensitive contents in this type
 /// and it would ideally be sufficient.
-pub struct IntegrityProtected<T: PartialEq>(pub T);
+pub struct IntegrityProtected<T: PartialEq>(T);
 
 /// We need this auxiliary function to force non-inlining of
 /// the actual low-level comparison
 #[inline(never)]
-pub fn compare_never_inlined<T: PartialEq>(a: T, b: T) -> bool {
+fn compare_never_inlined<T: PartialEq>(a: T, b: T) -> bool {
     // For other security reasons, one should hope this comparison
     // is constant time.
     a == b
