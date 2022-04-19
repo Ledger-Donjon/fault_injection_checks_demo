@@ -8,10 +8,13 @@ test_fi = []
 
 [dependencies]
 cortex-m-semihosting = "0.3.7"
+panic-semihosting = "0.6.0"
+fault_hardened = { path = "../fault_hardened" }
 
 [dev-dependencies]
-testmacro = { git = "https://github.com/yhql/testmacro"}
-rust_fi = { path = "rust_fi" }
+embedded_test_harness = "0.1.1"
+testmacro = { git = "https://github.com/yhql/testmacro" }
+rust_fi = { path = "../rust_fi" }
 
 [profile.dev]
 panic = "abort"

@@ -2,26 +2,13 @@
 #![cfg_attr(test, no_main)]
 #![feature(custom_test_frameworks)]
 #![reexport_test_harness_main = "test_main"]
-#![test_runner(test_utils::test_runner)]
-
-pub mod bool_protected;
-pub mod qemu;
+#![test_runner(test_runner)]
 
 #[cfg(test)]
-mod test_utils;
+use embedded_test_harness::test_runner;
 
-use bool_protected::BoolProtected;
-use core::panic::PanicInfo;
-
-/// With the panic handler being `#[inline(never)]` the symbol
-/// `rust_begin_unwind` will be available to place a breakpoint on to halt
-/// when a panic is happening. This idea was taken from panic_halt crate.
-#[inline(never)]
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    crate::println!("{}", info);
-    loop {}
-}
+use panic_semihosting as _;
+use fault_hardened::bool::Bool;
 
 /// First candidate: a basic `memcmp` with early exits that will act
 /// as a reference for fault testing.
@@ -59,11 +46,11 @@ pub fn compare_pin_double_inline(user_pin: &[u8], ref_pin: &[u8]) -> bool {
 }
 
 #[inline(never)]
-pub fn compare_pin_protected(user_pin: &[u8], ref_pin: &[u8]) -> BoolProtected {
-    let mut good = BoolProtected::from(true);
+pub fn compare_pin_protected(user_pin: &[u8], ref_pin: &[u8]) -> Bool {
+    let mut good = Bool::from(true);
     for i in 0..ref_pin.len() {
         if user_pin[i] != ref_pin[i] {
-            good = BoolProtected::from(false);
+            good = Bool::from(false);
         }
     }
     good
@@ -91,66 +78,26 @@ pub fn compare_pin_fp_variant(user_pin: &[u8], ref_pin: &[u8]) -> bool {
         .fold(true, |acc, (a, b)| acc & (a == b))
 }
 
-/// Variant using BoolProtected
+/// Variant using protected Bool
 #[inline(never)]
-pub fn compare_pin_fp_protected(user_pin: &[u8], ref_pin: &[u8]) -> BoolProtected {
+pub fn compare_pin_fp_protected(user_pin: &[u8], ref_pin: &[u8]) -> Bool {
     if ref_pin.is_empty() || user_pin.len() != ref_pin.len(){
-        return BoolProtected::from(false);
+        return Bool::from(false);
     }
 
     !user_pin
         .iter()
         .zip(ref_pin.iter())
-        .fold(BoolProtected::from(false), |acc, (a, b)| {
-            acc | BoolProtected::from(a != b)
+        .fold(Bool::from(false), |acc, (a, b)| {
+            acc | Bool::from(a != b)
         })
-}
-
-/// The goal of this library would be to provide a comparison function
-/// that is tested against faults in a continuous integration manner.
-/// The better way to provide it would be as a special type/struct
-/// that reimplements its own 'PartialEq' so that it can transparently
-/// be used externally, without having to worry about invoking correctly
-/// or at the right place.
-/// The user would only need to wrap the sensitive contents in this type
-/// and it would ideally be sufficient.
-pub struct IntegrityProtected<T: PartialEq>(T);
-
-/// We need this auxiliary function to force non-inlining of
-/// the actual low-level comparison
-#[inline(never)]
-fn compare_never_inlined<T: PartialEq>(a: T, b: T) -> bool {
-    // For other security reasons, one should hope this comparison
-    // is constant time.
-    a == b
-}
-
-impl<T: PartialEq> PartialEq<&T> for IntegrityProtected<T> {
-    /// The core of the countermeasure:
-    /// compare twice, and return true only when both comparison
-    /// succeeded
-    /// Always inline because otherwise the call to `eq()` could
-    /// be skipped.
-    #[inline(always)]
-    fn eq(&self, rhs: &&T) -> bool {
-        if compare_never_inlined(rhs, &&self.0) {
-            if compare_never_inlined(&self.0, rhs) {
-                true
-            } else {
-                // Can only reach this branch when faulted
-                panic!("fault")
-            }
-        } else {
-            false
-        }
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::assert_eq_err as assert_eq;
-    use crate::test_utils::TestType;
+    use embedded_test_harness::assert_eq_err as assert_eq;
+    use embedded_test_harness::{_print, TestType};
     use testmacro::test_item as test;
 
     const CORRECT_PIN: [u8; 4] = [1, 2, 3, 4];
@@ -184,28 +131,17 @@ mod tests {
     fn invalid_pin_double() {
         assert_eq!(compare_pin_double(&[0, 0, 0, 0], &CORRECT_PIN), false);
     }
-
-    #[test]
-    fn valid_safe_trait() {
-        let ref_pin = IntegrityProtected(CORRECT_PIN);
-        assert_eq!(ref_pin == &[1, 2, 3, 4], true);
-    }
-
-    #[test]
-    fn invalid_safe_trait() {
-        let ref_pin = IntegrityProtected(CORRECT_PIN);
-        assert_eq!(ref_pin == &[0; 4], false);
-    }
 }
 
 #[cfg(test)]
 mod tests_fi {
     use super::*;
     use rust_fi::{assert_eq, rust_fi_faulted_behavior, rust_fi_nominal_behavior};
+    use fault_hardened::Protected;
 
     const CORRECT_PIN: [u8; 4] = [1, 2, 3, 4];
-    const CORRECT_PIN_PROTECTED: crate::IntegrityProtected<[u8; 4]> =
-        crate::IntegrityProtected([1, 2, 3, 4]);
+    const CORRECT_PIN_PROTECTED: Protected<[u8; 4]> =
+        Protected([1, 2, 3, 4]);
 
     #[no_mangle]
     #[inline(never)]
@@ -231,7 +167,7 @@ mod tests_fi {
     #[inline(never)]
     fn test_fi_simple_protected() {
         let user_pin = [0; 4];
-        assert_eq!(compare_pin_protected(&user_pin, &CORRECT_PIN), BoolProtected::from(false));
+        assert_eq!(compare_pin_protected(&user_pin, &CORRECT_PIN), Bool::from(false));
     }
 
     #[no_mangle]
@@ -257,7 +193,7 @@ mod tests_fi {
     fn test_fi_simple_fp_protected() {
         assert_eq!(
             compare_pin_fp_protected(&[0; 4], &CORRECT_PIN),
-            BoolProtected::from(false)
+            Bool::from(false)
         );
     }
 
@@ -270,7 +206,7 @@ mod tests_fi {
     #[no_mangle]
     #[inline(never)]
     fn test_fi_hard2() {
-        let ref_pin = crate::IntegrityProtected([
+        let ref_pin = Protected([
             1, 8, 9, 2, 3, 1, 3, 2, 1, 0, 2, 23, 29381, 281, 283, 172, 381, 280,
         ]);
         assert_eq!((ref_pin == &[1; 18]), false);

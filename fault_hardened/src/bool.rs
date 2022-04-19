@@ -3,11 +3,10 @@ use core::default::Default;
 use core::fmt::{Debug, Display};
 use core::ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not};
 
-// BoolProtected is a fault-resistent boolean type.
-// False is represented by 0b01100110 and true by 0b00101010.
+// Bool is a fault-resistent boolean type.
 // If during an operation an unexpected value is found, panic will be raised.
 #[derive(Clone, Copy, Eq)]
-pub struct BoolProtected(u32);
+pub struct Bool(u32);
 
 // TRUE is not the opposite of FALSE to force the compiler to no use NEG
 // First and last bit is 0, in case of boolean casting
@@ -15,9 +14,9 @@ pub struct BoolProtected(u32);
 const TRUE: u32 = 0b0010_1010_1010_1010_1010_1110_1010_1010;
 const FALSE: u32 = 0b0110_0101_0101_0110_1100_0011_0101_1100;
 
-impl From<BoolProtected> for bool {
+impl From<Bool> for bool {
     #[inline(always)]
-    fn from(source: BoolProtected) -> bool {
+    fn from(source: Bool) -> bool {
         if (source.0 != TRUE) & (source.0 != FALSE) {
             panic!() // Unexpected state
         }
@@ -25,9 +24,9 @@ impl From<BoolProtected> for bool {
     }
 }
 
-impl From<bool> for BoolProtected {
+impl From<bool> for Bool {
     #[inline(always)]
-    fn from(source: bool) -> BoolProtected {
+    fn from(source: bool) -> Bool {
         match source {
             true => Self(TRUE),
             false => Self(FALSE),
@@ -35,25 +34,25 @@ impl From<bool> for BoolProtected {
     }
 }
 
-impl Default for BoolProtected {
+impl Default for Bool {
     fn default() -> Self {
         Self(FALSE)
     }
 }
 
-impl Debug for BoolProtected {
+impl Debug for Bool {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "BoolProtected<{:?}>", bool::from(*self))
+        write!(f, "Bool<{:?}>", bool::from(*self))
     }
 }
 
-impl Display for BoolProtected {
+impl Display for Bool {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", bool::from(*self))
     }
 }
 
-impl BitAnd for BoolProtected {
+impl BitAnd for Bool {
     type Output = Self;
 
     #[inline(always)]
@@ -66,14 +65,14 @@ impl BitAnd for BoolProtected {
     }
 }
 
-impl BitAndAssign for BoolProtected {
+impl BitAndAssign for Bool {
     #[inline(always)]
     fn bitand_assign(&mut self, rhs: Self) {
         *self = *self & rhs
     }
 }
 
-impl BitOr for BoolProtected {
+impl BitOr for Bool {
     type Output = Self;
 
     #[inline(always)]
@@ -86,14 +85,14 @@ impl BitOr for BoolProtected {
     }
 }
 
-impl BitOrAssign for BoolProtected {
+impl BitOrAssign for Bool {
     #[inline(always)]
     fn bitor_assign(&mut self, rhs: Self) {
         *self = *self | rhs;
     }
 }
 
-impl BitXor for BoolProtected {
+impl BitXor for Bool {
     type Output = Self;
 
     #[inline(always)]
@@ -106,14 +105,14 @@ impl BitXor for BoolProtected {
     }
 }
 
-impl BitXorAssign for BoolProtected {
+impl BitXorAssign for Bool {
     #[inline(always)]
     fn bitxor_assign(&mut self, rhs: Self) {
         *self = *self ^ rhs;
     }
 }
 
-impl Not for BoolProtected {
+impl Not for Bool {
     type Output = Self;
 
     #[inline(always)]
@@ -126,7 +125,7 @@ impl Not for BoolProtected {
     }
 }
 
-impl PartialEq for BoolProtected {
+impl PartialEq for Bool {
     #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
         match (self.0, other.0) {
@@ -140,89 +139,59 @@ impl PartialEq for BoolProtected {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::assert_eq_err as assert_eq;
-    use crate::test_utils::TestType;
-    use testmacro::test_item as test;
 
     #[test]
-    fn test_and_false_false() {
-        assert_eq!(
-            BoolProtected::from(false) & BoolProtected::from(false),
-            BoolProtected::from(false)
-        );
+    fn and_false_false() {
+        assert_eq!(Bool::from(false) & Bool::from(false), Bool::from(false));
     }
 
     #[test]
-    fn test_and_false_true() {
-        assert_eq!(
-            BoolProtected::from(false) & BoolProtected::from(true),
-            BoolProtected::from(false)
-        );
+    fn and_false_true() {
+        assert_eq!(Bool::from(false) & Bool::from(true), Bool::from(false));
     }
 
     #[test]
-    fn test_and_true_true() {
-        assert_eq!(
-            BoolProtected::from(true) & BoolProtected::from(true),
-            BoolProtected::from(true)
-        );
+    fn and_true_true() {
+        assert_eq!(Bool::from(true) & Bool::from(true), Bool::from(true));
     }
 
     #[test]
-    fn test_or_false_false() {
-        assert_eq!(
-            BoolProtected::from(false) | BoolProtected::from(false),
-            BoolProtected::from(false)
-        );
+    fn or_false_false() {
+        assert_eq!(Bool::from(false) | Bool::from(false), Bool::from(false));
     }
 
     #[test]
-    fn test_or_false_true() {
-        assert_eq!(
-            BoolProtected::from(false) | BoolProtected::from(true),
-            BoolProtected::from(true)
-        );
+    fn or_false_true() {
+        assert_eq!(Bool::from(false) | Bool::from(true), Bool::from(true));
     }
 
     #[test]
-    fn test_or_true_true() {
-        assert_eq!(
-            BoolProtected::from(true) | BoolProtected::from(true),
-            BoolProtected::from(true)
-        );
+    fn or_true_true() {
+        assert_eq!(Bool::from(true) | Bool::from(true), Bool::from(true));
     }
 
     #[test]
-    fn test_xor_false_false() {
-        assert_eq!(
-            BoolProtected::from(false) ^ BoolProtected::from(false),
-            BoolProtected::from(false)
-        );
+    fn xor_false_false() {
+        assert_eq!(Bool::from(false) ^ Bool::from(false), Bool::from(false));
     }
 
     #[test]
-    fn test_xor_false_true() {
-        assert_eq!(
-            BoolProtected::from(false) ^ BoolProtected::from(true),
-            BoolProtected::from(true)
-        );
+    fn xor_false_true() {
+        assert_eq!(Bool::from(false) ^ Bool::from(true), Bool::from(true));
     }
 
     #[test]
-    fn test_xor_true_true() {
-        assert_eq!(
-            BoolProtected::from(true) ^ BoolProtected::from(true),
-            BoolProtected::from(false)
-        );
+    fn xor_true_true() {
+        assert_eq!(Bool::from(true) ^ Bool::from(true), Bool::from(false));
     }
 
     #[test]
-    fn test_not_false() {
-        assert_eq!(!BoolProtected::from(false), BoolProtected::from(true));
+    fn not_false() {
+        assert_eq!(!Bool::from(false), Bool::from(true));
     }
 
     #[test]
-    fn test_not_true() {
-        assert_eq!(!BoolProtected::from(true), BoolProtected::from(false));
+    fn not_true() {
+        assert_eq!(!Bool::from(true), Bool::from(false));
     }
 }

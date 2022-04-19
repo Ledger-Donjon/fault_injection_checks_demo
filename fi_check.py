@@ -179,11 +179,12 @@ def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=
 	return faults
 
 
-def cargo_build_test() -> str:
+def cargo_build_test(path="pin_verif") -> str:
 	"""Call Cargo to build test and return path"""
 	proc = subprocess.run(
 		"cargo test --features test_fi --no-run --release --message-format=json",
 		shell=True,
+		cwd=path,
 		stdout=subprocess.PIPE,
 	)
 	proc.check_returncode()
