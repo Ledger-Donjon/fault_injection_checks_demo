@@ -119,7 +119,7 @@ def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=
 		# Setup fake caller so we know when the function returned
 		emulator['lr'] = stopgap
 
-		if emulator.start(target_function, stopgap, count=i):
+		if emulator.start(target_function, stopgap, count=i, verbose=False):
 			raise RuntimeError(f"Emulator crashed before faulting")
 
 		pc_stopped = emulator['pc']
@@ -138,7 +138,7 @@ def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=
 				continue
 
 			# execute until back to start or looping for too long
-			if emulator.start(new_pc, stopgap, count=max_ins):
+			if emulator.start(new_pc, stopgap, count=max_ins, verbose=False):
 				# Crashed after the fault.
 				# This includes cases were 'faulted_return' was executed but
 				# lead to an incorrect state 
