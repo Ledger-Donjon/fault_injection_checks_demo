@@ -1,0 +1,10 @@
+[workspace]
+members = [
+    "fault_hardened",
+    "pin_verif",
+    "rust_fi"
+]
+
+[profile.release]
+debug = true # symbols don't increase the size on Flash
+opt-level = 's'

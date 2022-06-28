@@ -15,11 +15,3 @@ fault_hardened = { path = "../fault_hardened" }
 embedded_test_harness = "0.1.1"
 testmacro = { git = "https://github.com/yhql/testmacro" }
 rust_fi = { path = "../rust_fi" }
-
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-panic = "abort"
-opt-level = 's'
-debug = true # symbols don't increase the size on Flash

@@ -7,8 +7,8 @@
 #[cfg(test)]
 use embedded_test_harness::test_runner;
 
-use panic_semihosting as _;
 use fault_hardened::bool::Bool;
+use panic_semihosting as _;
 
 /// First candidate: a basic `memcmp` with early exits that will act
 /// as a reference for fault testing.
@@ -81,23 +81,21 @@ pub fn compare_pin_fp_variant(user_pin: &[u8], ref_pin: &[u8]) -> bool {
 /// Variant using protected Bool
 #[inline(never)]
 pub fn compare_pin_fp_protected(user_pin: &[u8], ref_pin: &[u8]) -> Bool {
-    if ref_pin.is_empty() || user_pin.len() != ref_pin.len(){
+    if ref_pin.is_empty() || user_pin.len() != ref_pin.len() {
         return Bool::from(false);
     }
 
     !user_pin
         .iter()
         .zip(ref_pin.iter())
-        .fold(Bool::from(false), |acc, (a, b)| {
-            acc | Bool::from(a != b)
-        })
+        .fold(Bool::from(false), |acc, (a, b)| acc | Bool::from(a != b))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use embedded_test_harness::assert_eq_err as assert_eq;
-    use embedded_test_harness::{_print, TestType};
+    use embedded_test_harness::{TestType, _print};
     use testmacro::test_item as test;
 
     const CORRECT_PIN: [u8; 4] = [1, 2, 3, 4];
@@ -136,12 +134,11 @@ mod tests {
 #[cfg(test)]
 mod tests_fi {
     use super::*;
-    use rust_fi::{assert_eq, rust_fi_faulted_behavior, rust_fi_nominal_behavior};
     use fault_hardened::Protected;
+    use rust_fi::{assert_eq, rust_fi_faulted_behavior, rust_fi_nominal_behavior};
 
     const CORRECT_PIN: [u8; 4] = [1, 2, 3, 4];
-    const CORRECT_PIN_PROTECTED: Protected<[u8; 4]> =
-        Protected([1, 2, 3, 4]);
+    const CORRECT_PIN_PROTECTED: Protected<[u8; 4]> = Protected([1, 2, 3, 4]);
 
     #[no_mangle]
     #[inline(never)]
@@ -167,7 +164,10 @@ mod tests_fi {
     #[inline(never)]
     fn test_fi_simple_protected() {
         let user_pin = [0; 4];
-        assert_eq!(compare_pin_protected(&user_pin, &CORRECT_PIN), Bool::from(false));
+        assert_eq!(
+            compare_pin_protected(&user_pin, &CORRECT_PIN),
+            Bool::from(false)
+        );
     }
 
     #[no_mangle]
