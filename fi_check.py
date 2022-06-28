@@ -21,12 +21,12 @@ def setup_emulator(path: str) -> rainbow_arm:
 
 	def faulted_behavior(emu: rainbow_arm):
 		# ignore faults that are happening after normal behavior
-		if emu.meta["exit_status"] is None:
+		if emu.meta.get("exit_status") is None:
 			emu.meta["exit_status"] = True
 		emu.emu.emu_stop()
 
 	def nominal_behavior(emu: rainbow_arm):
-		if emu.meta["exit_status"] is None:
+		if emu.meta.get("exit_status") is None:
 			emu.meta["exit_status"] = False
 		emu.emu.emu_stop()
 
@@ -47,7 +47,7 @@ def inject_skip(emu, current_pc):
 		return None
 	_, ins_size, _, _ = ins
 	thumb_bit = (emu["cpsr"]>>5) & 1
-	return (current_pc + ins_size) | thumb_bit 
+	return (current_pc + ins_size) | thumb_bit
 
 
 def inject_stuck_at(emu, current_pc, value):
@@ -64,12 +64,12 @@ def inject_stuck_at(emu, current_pc, value):
 			# so we step once, inject the fault, and return
 			thumb_bit = (emu["cpsr"]>>5) & 1
 			if emu.start(current_pc | thumb_bit, 0, count = 1):
-				return None 
+				return None
 			emu[r] = value
 			current_pc = emu['pc']
 	thumb_bit = (emu["cpsr"]>>5) & 1
 	ret = current_pc | thumb_bit
-	return ret 
+	return ret
 
 
 def replay_fault(instruction_index, emulator, target_function, fault_injector, max_ins=200):
@@ -82,24 +82,25 @@ def replay_fault(instruction_index, emulator, target_function, fault_injector, m
 	stopgap = 0xddddeeee
 	emulator[stopgap:stopgap+max_ins] = 0
 
+	emulator.meta = {}
 	emulator.reset()
 	# Reset disassembler
 	emulator.disasm.mode = cs.CS_MODE_THUMB
 
 	emulator['lr'] = stopgap
-	emulator.start(target_function, stopgap, count = instruction_index)
+	emulator.start(target_function, stopgap, count=instruction_index, verbose=False)
 
 	pc_stopped = emulator['pc']
 	new_pc = fault_injector(emulator, pc_stopped)
 	addr, _, ins_mnemonic, ins_str = emulator.disassemble_single(pc_stopped, 4)
 	emulator.print_asmline(addr, ins_mnemonic, ins_str)
 	print('<--!', end='\n\n')
-	ret = emulator.start(new_pc, stopgap, count = max_ins)
+	emulator.start(new_pc, stopgap, count=max_ins, verbose=False)
 
 
 def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=False):
-	faults = [] 
-	crash_count = 0 
+	faults = []
+	crash_count = 0
 	stopgap = 0xddddeeee
 
 	# Setup emulator
@@ -107,10 +108,8 @@ def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=
 	emulator[stopgap:stopgap+max_ins] = 0
 
 	for i in range(1, max_ins):
-		# Init exit_status state
+		# Init metadata and reset
 		emulator.meta = {}
-		emulator.meta["exit_status"] = None
-
 		emulator.reset()
 
 		# Also reset disassembler to thumb mode
@@ -126,7 +125,7 @@ def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=
 
 		# Only if we haven't already reached
 		# the end of the execution
-		if pc_stopped == stopgap or emulator.meta["exit_status"] is not None:
+		if pc_stopped == stopgap or emulator.meta.get("exit_status") is not None:
 			# current 'i' hits after the function has ended
 			# No more tests to do
 			break
@@ -153,10 +152,10 @@ def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=
 				emulator[stopgap:stopgap+max_ins] = 0
 				continue
 
-		if emulator.meta["exit_status"] is None:
+		if emulator.meta.get("exit_status") is None:
 			# Execution went astray and never reached either 'faulted_return' nor 'nominal_behavior'
 			crash_count += 1
-		elif emulator.meta["exit_status"] == True:
+		elif emulator.meta.get("exit_status") == True:
 			# Successful fault: execution reached 'faulted_return' (and did not crash afterwards)
 			addr, _, ins_mnemonic, ins_str = emulator.disassemble_single(pc_stopped, 4)
 			func, file_ = get_addr2line(path, addr, no_llvm=cli_report)
