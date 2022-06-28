@@ -1,22 +1,10 @@
-[package]
-name = "pin_verif"
-version = "0.1.0"
-edition = "2021"
-
-[features]
-test_fi = []
-
-[dependencies]
-cortex-m-semihosting = "0.3.7"
-
-[dev-dependencies]
-testmacro = { git = "https://github.com/yhql/testmacro"}
-rust_fi = { path = "rust_fi" }
-
-[profile.dev]
-panic = "abort"
+[workspace]
+members = [
+    "fault_hardened",
+    "pin_verif",
+    "rust_fi"
+]
 
 [profile.release]
-panic = "abort"
-opt-level = 's'
 debug = true # symbols don't increase the size on Flash
+opt-level = 's'
