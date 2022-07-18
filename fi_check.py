@@ -5,6 +5,7 @@ import subprocess
 
 import capstone as cs
 from rainbow.generics import rainbow_arm
+from rainbow.fault_models import fault_skip, fault_stuck_at
 from addr2line import get_addr2line
 
 
@@ -40,38 +41,6 @@ def setup_emulator(path: str) -> rainbow_arm:
 	return emu
 
 
-def inject_skip(emu, current_pc):
-	""" Skip current instruction at 'current_pc' with emulator state 'emu' """
-	ins = emu.disassemble_single(current_pc, 4)
-	if ins is None:
-		return None
-	_, ins_size, _, _ = ins
-	thumb_bit = (emu["cpsr"]>>5) & 1
-	return (current_pc + ins_size) | thumb_bit
-
-
-def inject_stuck_at(emu, current_pc, value):
-	""" Injects a value in the destination register updated by the current instruction """
-	ins = emu.disassemble_single_detailed(current_pc, 4)
-	if ins is None:
-		return None
-	_, regs_written = ins.regs_access()
-	if len(regs_written) > 0:
-		reg_names = list(filter(lambda r:r.lower() not in ['cpsr', 'pc', 'lr'], map(ins.reg_name,regs_written)))
-		if len(reg_names) > 0:
-			r = reg_names[0]
-			# We're stopped before executing the target instruction
-			# so we step once, inject the fault, and return
-			thumb_bit = (emu["cpsr"]>>5) & 1
-			if emu.start(current_pc | thumb_bit, 0, count = 1):
-				return None
-			emu[r] = value
-			current_pc = emu['pc']
-	thumb_bit = (emu["cpsr"]>>5) & 1
-	ret = current_pc | thumb_bit
-	return ret
-
-
 def replay_fault(instruction_index, emulator, target_function, fault_injector, max_ins=200):
 	""" Execute function and display instruction trace, while applying fault at 'instruction_index'"""
 	emulator.trace = True
@@ -88,14 +57,14 @@ def replay_fault(instruction_index, emulator, target_function, fault_injector, m
 	emulator.disasm.mode = cs.CS_MODE_THUMB
 
 	emulator['lr'] = stopgap
-	emulator.start(target_function, stopgap, count=instruction_index, verbose=False)
+	emulator.start(target_function, stopgap, count=instruction_index)
 
-	pc_stopped = emulator['pc']
-	new_pc = fault_injector(emulator, pc_stopped)
-	addr, _, ins_mnemonic, ins_str = emulator.disassemble_single(pc_stopped, 4)
+	addr, _, ins_mnemonic, ins_str = emulator.disassemble_single(emulator['pc'], 4)
 	emulator.print_asmline(addr, ins_mnemonic, ins_str)
 	print('<--!', end='\n\n')
-	emulator.start(new_pc, stopgap, count=max_ins, verbose=False)
+	thumb_bit = (emulator["cpsr"] >> 5) & 1
+	fault_injector(emulator)
+	emulator.start(emulator["pc"] | thumb_bit, stopgap, count=max_ins)
 
 
 def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=False):
@@ -118,39 +87,35 @@ def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=
 		# Setup fake caller so we know when the function returned
 		emulator['lr'] = stopgap
 
-		if emulator.start(target_function, stopgap, count=i, verbose=False):
-			raise RuntimeError(f"Emulator crashed before faulting")
+		try:
+			emulator.start(target_function, stopgap, count=i)
 
-		pc_stopped = emulator['pc']
+			pc_stopped = emulator['pc']
 
-		# Only if we haven't already reached
-		# the end of the execution
-		if pc_stopped == stopgap or emulator.meta.get("exit_status") is not None:
-			# current 'i' hits after the function has ended
-			# No more tests to do
-			break
-		else:
-			new_pc = fault_injector(emulator, pc_stopped)
-			if new_pc is None:
-				# Trying to fault an invalid instruction, pass
-				crash_count += 1
-				continue
+			# Stop if i is after the end of the function
+			if emulator.meta.get("exit_status") is not None:
+				break
+
+			thumb_bit = (emulator["cpsr"] >> 5) & 1
+
+			fault_injector(emulator)
 
 			# execute until back to start or looping for too long
-			if emulator.start(new_pc, stopgap, count=max_ins, verbose=False):
-				# Crashed after the fault.
-				# This includes cases were 'faulted_return' was executed but
-				# lead to an incorrect state 
-				# However if 'faulted_return' represents a permanent decision like
-				# updating a flag in non-volatile memory then it is incorrect
-				# to consider this a crash, and this part of the script should
-				# be adapted accordingly (i.e. complete the loop iteration)
-				crash_count += 1
+			emulator.start(emulator["pc"] | thumb_bit, stopgap, count=max_ins)
+		except RuntimeError:
+			# Fault introduced crash
+			# This includes cases were 'faulted_return' was executed but
+			# lead to an incorrect state.
+			# However if 'faulted_return' represents a permanent decision like
+			# updating a flag in non-volatile memory then it is incorrect
+			# to consider this a crash, and this part of the script should
+			# be adapted accordingly (i.e. complete the loop iteration).
+			crash_count += 1
 
-				# Fully reset emulator
-				emulator = setup_emulator(path)
-				emulator[stopgap:stopgap+max_ins] = 0
-				continue
+			# Fully reset emulator
+			emulator = setup_emulator(path)
+			emulator[stopgap:stopgap+max_ins] = 0
+			continue
 
 		if emulator.meta.get("exit_status") is None:
 			# Execution went astray and never reached either 'faulted_return' nor 'nominal_behavior'
@@ -165,14 +130,14 @@ def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=
 				print( f" with \x1b[1;36m{fault_injector.__name__}\x1b[0m in \x1b[1;36m{func}\x1b[0m ({file_}) \x1b[0m", end='')
 			else:
 				print(f"\nwarning: '[{fault_injector.__name__}] {ins_mnemonic} {ins_str}' {file_} ")
-			faults += [(i, addr)] 
+			faults += [(i, addr)]
 
 	if cli_report:
 		fault_count = len(faults)
 		if fault_count > 0:
-			clr = "\x1b[1;31m" 
+			clr = "\x1b[1;31m"
 		else:
-			clr = "\x1b[1;32m" 
+			clr = "\x1b[1;32m"
 
 		print(f"\n[x] Found {clr} {fault_count} \x1b[0m fault{'s'*(fault_count>1)} and {crash_count} crashes.")
 	return faults
@@ -203,12 +168,6 @@ if __name__ == "__main__":
 	argp.add_argument('-r', '--replay', action='store_const', const=True, default=False, help="replay found faults with instruction trace")
 	args = argp.parse_args()
 
-	def inject_zero(a,p):
-		return inject_stuck_at(a,p,0)
-
-	def inject_ones(a,p):
-		return inject_stuck_at(a,p,0xffff_ffff)
-
 	# Build emulator
 	path = cargo_build_test()
 	e = setup_emulator(path)
@@ -220,12 +179,12 @@ if __name__ == "__main__":
 
 	functions_to_test = [e.functions[f] for f in args.functions]
 
-	total_faults = [] 
+	total_faults = []
 	for func in functions_to_test:
 		if args.cli:
 			name = e.function_names[func]
 			print(f'\n* Testing \x1b[1;35m{name}\x1b[0m')
-		for model in [inject_skip, inject_zero, inject_ones]:
+		for model in [fault_skip, fault_stuck_at(0), fault_stuck_at(0xffff_ffff)]:
 			if args.cli:
 				print(f"[ ] {model.__name__}")
 			res = test_faults(path, func, model, cli_report=args.cli)
@@ -240,6 +199,4 @@ if __name__ == "__main__":
 				print(f"\n{'-'*10} replaying {model.__name__} at {flt[1]:x}:")
 				replay_fault(flt[0], e, func, model)
 
-	if len(total_faults) > 0:
-		sys.exit(1)
-	sys.exit(0)	
+	sys.exit(len(total_faults) > 0)
