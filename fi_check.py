@@ -87,21 +87,11 @@ def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=
 		# Setup fake caller so we know when the function returned
 		emulator['lr'] = stopgap
 
+		end = emulator.functions["rust_fi_nominal_behavior"]
 		try:
-			emulator.start(target_function, stopgap, count=i)
-
-			pc_stopped = emulator['pc']
-
-			# Stop if i is after the end of the function
-			if emulator.meta.get("exit_status") is not None:
-				break
-
-			thumb_bit = (emulator["cpsr"] >> 5) & 1
-
-			fault_injector(emulator)
-
-			# execute until back to start or looping for too long
-			emulator.start(emulator["pc"] | thumb_bit, stopgap, count=max_ins)
+			pc_stopped = emulator.start_and_fault(fault_injector, i, target_function, end, count=max_ins)
+		except IndexError:
+			break  # Faulting after the end of the function
 		except RuntimeError:
 			# Fault introduced crash
 			# This includes cases were 'faulted_return' was executed but
