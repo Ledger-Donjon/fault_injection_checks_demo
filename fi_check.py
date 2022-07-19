@@ -51,20 +51,17 @@ def replay_fault(instruction_index, emulator, target_function, fault_injector, m
 	stopgap = 0xddddeeee
 	emulator[stopgap:stopgap+max_ins] = 0
 
+	# Init metadata and reset
 	emulator.meta = {}
 	emulator.reset()
+
 	# Reset disassembler
 	emulator.disasm.mode = cs.CS_MODE_THUMB
 
 	emulator['lr'] = stopgap
-	emulator.start(target_function, stopgap, count=instruction_index)
 
-	addr, _, ins_mnemonic, ins_str = emulator.disassemble_single(emulator['pc'], 4)
-	emulator.print_asmline(addr, ins_mnemonic, ins_str)
-	print('<--!', end='\n\n')
-	thumb_bit = (emulator["cpsr"] >> 5) & 1
-	fault_injector(emulator)
-	emulator.start(emulator["pc"] | thumb_bit, stopgap, count=max_ins)
+	end = emulator.functions["rust_fi_nominal_behavior"]
+	emulator.start_and_fault(fault_injector, instruction_index, target_function, end, count=max_ins)
 
 
 def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=False):
@@ -169,24 +166,27 @@ if __name__ == "__main__":
 
 	functions_to_test = [e.functions[f] for f in args.functions]
 
-	total_faults = []
+	exit_code = 0
 	for func in functions_to_test:
 		if args.cli:
 			name = e.function_names[func]
 			print(f'\n* Testing \x1b[1;35m{name}\x1b[0m')
+
+		total_faults = []
 		for model in [fault_skip, fault_stuck_at(0), fault_stuck_at(0xffff_ffff)]:
 			if args.cli:
 				print(f"[ ] {model.__name__}")
 			res = test_faults(path, func, model, cli_report=args.cli)
 			if len(res) > 0:
+				exit_code = 1
 				total_faults += [[model, res]]
 
-	if args.replay:
-		for flts in total_faults:
-			model = flts[0]
-			print('*'*10, model.__name__, '*'*10)
-			for flt in flts[1]:
-				print(f"\n{'-'*10} replaying {model.__name__} at {flt[1]:x}:")
-				replay_fault(flt[0], e, func, model)
+		if args.replay:
+			for flts in total_faults:
+				model = flts[0]
+				print('*'*10, model.__name__, '*'*10)
+				for flt in flts[1]:
+					print(f"\n{'-'*10} replaying {model.__name__} at {flt[1]:x}:")
+					replay_fault(flt[0], e, func, model)
 
-	sys.exit(len(total_faults) > 0)
+	sys.exit(exit_code)
