@@ -48,17 +48,12 @@ def replay_fault(instruction_index, emulator, target_function, fault_injector, m
 	emulator.mem_trace = True
 	emulator.trace_regs = True
 
-	stopgap = 0xddddeeee
-	emulator[stopgap:stopgap+max_ins] = 0
-
 	# Init metadata and reset
 	emulator.meta = {}
 	emulator.reset()
 
 	# Reset disassembler
 	emulator.disasm.mode = cs.CS_MODE_THUMB
-
-	emulator['lr'] = stopgap
 
 	end = emulator.functions["rust_fi_nominal_behavior"]
 	emulator.start_and_fault(fault_injector, instruction_index, target_function, end, count=max_ins)
@@ -67,11 +62,9 @@ def replay_fault(instruction_index, emulator, target_function, fault_injector, m
 def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=False):
 	faults = []
 	crash_count = 0
-	stopgap = 0xddddeeee
 
 	# Setup emulator
 	emulator = setup_emulator(path)
-	emulator[stopgap:stopgap+max_ins] = 0
 
 	for i in range(1, max_ins):
 		# Init metadata and reset
@@ -80,9 +73,6 @@ def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=
 
 		# Also reset disassembler to thumb mode
 		emulator.disasm.mode = cs.CS_MODE_THUMB
-
-		# Setup fake caller so we know when the function returned
-		emulator['lr'] = stopgap
 
 		end = emulator.functions["rust_fi_nominal_behavior"]
 		try:
@@ -101,7 +91,6 @@ def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=
 
 			# Fully reset emulator
 			emulator = setup_emulator(path)
-			emulator[stopgap:stopgap+max_ins] = 0
 			continue
 
 		if emulator.meta.get("exit_status") is None:
