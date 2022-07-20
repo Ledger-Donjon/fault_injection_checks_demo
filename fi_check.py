@@ -41,42 +41,40 @@ def setup_emulator(path: str) -> rainbow_arm:
 	return emu
 
 
-def replay_fault(instruction_index, emulator, target_function, fault_injector, max_ins=200):
+def replay_fault(instruction_index, emu, target_function, fault_injector, max_ins=200):
 	""" Execute function and display instruction trace, while applying fault at 'instruction_index'"""
-	emulator.trace = True
-	emulator.function_calls = True
-	emulator.mem_trace = True
-	emulator.trace_regs = True
+	emu.trace = True
+	emu.function_calls = True
+	emu.mem_trace = True
+	emu.trace_regs = True
 
 	# Init metadata and reset
-	emulator.meta = {}
-	emulator.reset()
+	emu.meta = {}
+	emu.reset()
 
 	# Reset disassembler
-	emulator.disasm.mode = cs.CS_MODE_THUMB
+	emu.disasm.mode = cs.CS_MODE_THUMB
 
-	end = emulator.functions["rust_fi_nominal_behavior"]
-	emulator.start_and_fault(fault_injector, instruction_index, target_function, end, count=max_ins)
+	end = emu.functions["rust_fi_nominal_behavior"]
+	emu.start_and_fault(fault_injector, instruction_index, target_function, end, count=max_ins)
 
 
 def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=False):
 	faults = []
 	crash_count = 0
-
-	# Setup emulator
-	emulator = setup_emulator(path)
+	emu = setup_emulator(path)
 
 	for i in range(1, max_ins):
 		# Init metadata and reset
-		emulator.meta = {}
-		emulator.reset()
+		emu.meta = {}
+		emu.reset()
 
 		# Also reset disassembler to thumb mode
-		emulator.disasm.mode = cs.CS_MODE_THUMB
+		emu.disasm.mode = cs.CS_MODE_THUMB
 
-		end = emulator.functions["rust_fi_nominal_behavior"]
+		end = emu.functions["rust_fi_nominal_behavior"]
 		try:
-			pc_stopped = emulator.start_and_fault(fault_injector, i, target_function, end, count=max_ins)
+			pc_stopped = emu.start_and_fault(fault_injector, i, target_function, end, count=max_ins)
 		except IndexError:
 			break  # Faulting after the end of the function
 		except RuntimeError:
@@ -90,18 +88,18 @@ def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=
 			crash_count += 1
 
 			# Fully reset emulator
-			emulator = setup_emulator(path)
+			emu = setup_emulator(path)
 			continue
 
-		if emulator.meta.get("exit_status") is None:
+		if emu.meta.get("exit_status") is None:
 			# Execution went astray and never reached either 'faulted_return' nor 'nominal_behavior'
 			crash_count += 1
-		elif emulator.meta.get("exit_status") == True:
+		elif emu.meta.get("exit_status") == True:
 			# Successful fault: execution reached 'faulted_return' (and did not crash afterwards)
-			addr, _, ins_mnemonic, ins_str = emulator.disassemble_single(pc_stopped, 4)
+			addr, _, ins_mnemonic, ins_str = emu.disassemble_single(pc_stopped, 4)
 			func, file_ = get_addr2line(path, addr, no_llvm=cli_report)
 			if cli_report:
-				emulator.print_asmline(addr, ins_mnemonic, ins_str)
+				emu.print_asmline(addr, ins_mnemonic, ins_str)
 				print(' <= Faulted', end='')
 				print( f" with \x1b[1;36m{fault_injector.__name__}\x1b[0m in \x1b[1;36m{func}\x1b[0m ({file_}) \x1b[0m", end='')
 			else:
