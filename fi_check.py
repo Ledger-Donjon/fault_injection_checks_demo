@@ -36,13 +36,13 @@ def setup_emulator(path: str) -> rainbow_arm:
     emu.hook_prolog("rust_fi_nominal_behavior", nominal_behavior)
 
     # Place an invalid instruction at 0 to detect corrupted stacks
-    emu[0] = 0xffffffff
+    emu[0] = 0xFFFFFFFF
 
     return emu
 
 
-def replay_fault(instruction_index, emu, target_function, fault_injector, max_ins=200):
-    """ Execute function and display instruction trace, while applying fault at 'instruction_index'"""
+def replay_fault(fault_index: int, emu, begin: int, fault_model, max_ins=200) -> None:
+    """Execute function and display instruction trace, while applying fault at 'fault_index'"""
     emu.trace = True
     emu.function_calls = True
     emu.mem_trace = True
@@ -56,10 +56,10 @@ def replay_fault(instruction_index, emu, target_function, fault_injector, max_in
     emu.disasm.mode = cs.CS_MODE_THUMB
 
     end = emu.functions["rust_fi_nominal_behavior"]
-    emu.start_and_fault(fault_injector, instruction_index, target_function, end, count=max_ins)
+    emu.start_and_fault(fault_model, fault_index, begin, end, count=max_ins)
 
 
-def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=False):
+def test_faults(path, begin: int, fault_model, max_ins=1000, cli_report=False):
     faults = []
     crash_count = 0
     emu = setup_emulator(path)
@@ -74,7 +74,7 @@ def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=
 
         end = emu.functions["rust_fi_nominal_behavior"]
         try:
-            pc_stopped = emu.start_and_fault(fault_injector, i, target_function, end, count=max_ins)
+            pc_stopped = emu.start_and_fault(fault_model, i, begin, end, count=max_ins)
         except IndexError:
             break  # Faulting after the end of the function
         except RuntimeError:
@@ -100,20 +100,23 @@ def test_faults(path, target_function, fault_injector, max_ins=1000, cli_report=
             func, file_ = get_addr2line(path, addr, no_llvm=cli_report)
             if cli_report:
                 emu.print_asmline(addr, ins_mnemonic, ins_str)
-                print(' <= Faulted', end='')
-                print( f" with \x1b[1;36m{fault_injector.__name__}\x1b[0m in \x1b[1;36m{func}\x1b[0m ({file_}) \x1b[0m", end='')
+                print(
+                    f" <= Faulted with \x1b[1;36m{fault_model.__name__}"
+                    f"\x1b[0m in \x1b[1;36m{func}\x1b[0m ({file_}) \x1b[0m",
+                    end="",
+                )
             else:
-                print(f"\nwarning: '[{fault_injector.__name__}] {ins_mnemonic} {ins_str}' {file_} ")
+                print(
+                    f"\nwarning: '[{fault_model.__name__}] {ins_mnemonic} {ins_str}' {file_} "
+                )
             faults += [(i, addr)]
 
     if cli_report:
         fault_count = len(faults)
-        if fault_count > 0:
-            clr = "\x1b[1;31m"
-        else:
-            clr = "\x1b[1;32m"
-
-        print(f"\n[x] Found {clr} {fault_count} \x1b[0m fault{'s'*(fault_count>1)} and {crash_count} crashes.")
+        clr = "\x1b[1;31m" if fault_count > 0 else "\x1b[1;32m"
+        print(
+            f"\n[x] Found {clr} {fault_count} \x1b[0m fault{'s'*(fault_count>1)} and {crash_count} crashes."
+        )
     return faults
 
 
@@ -136,10 +139,24 @@ def cargo_build_test(path="pin_verif") -> str:
 if __name__ == "__main__":
     import sys
     from argparse import ArgumentParser
+
     argp = ArgumentParser()
-    argp.add_argument('functions', nargs='*', help="functions to scan, default to all")
-    argp.add_argument('--cli', action='store_const', const=True, default=False, help="produce report in command line")
-    argp.add_argument('-r', '--replay', action='store_const', const=True, default=False, help="replay found faults with instruction trace")
+    argp.add_argument("functions", nargs="*", help="functions to scan, default to all")
+    argp.add_argument(
+        "--cli",
+        action="store_const",
+        const=True,
+        default=False,
+        help="produce report in command line",
+    )
+    argp.add_argument(
+        "-r",
+        "--replay",
+        action="store_const",
+        const=True,
+        default=False,
+        help="replay found faults with instruction trace",
+    )
     args = argp.parse_args()
 
     # Build emulator
@@ -157,10 +174,10 @@ if __name__ == "__main__":
     for func in functions_to_test:
         if args.cli:
             name = e.function_names[func]
-            print(f'\n* Testing \x1b[1;35m{name}\x1b[0m')
+            print(f"\n* Testing \x1b[1;35m{name}\x1b[0m")
 
         total_faults = []
-        for model in [fault_skip, fault_stuck_at(0), fault_stuck_at(0xffff_ffff)]:
+        for model in [fault_skip, fault_stuck_at(0), fault_stuck_at(0xFFFF_FFFF)]:
             if args.cli:
                 print(f"[ ] {model.__name__}")
             res = test_faults(path, func, model, cli_report=args.cli)
@@ -171,7 +188,7 @@ if __name__ == "__main__":
         if args.replay:
             for flts in total_faults:
                 model = flts[0]
-                print('*'*10, model.__name__, '*'*10)
+                print("*" * 10, model.__name__, "*" * 10)
                 for flt in flts[1]:
                     print(f"\n{'-'*10} replaying {model.__name__} at {flt[1]:x}:")
                     replay_fault(flt[0], e, func, model)
