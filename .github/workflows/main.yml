@@ -6,8 +6,8 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
-    inputs: 
-      name: 
+    inputs:
+      name:
         description: 'Manually triggered'
 
 env:
@@ -23,11 +23,11 @@ jobs:
         with:
           toolchain: nightly
           override: true
-          target: thumbv6m-none-eabi 
+          target: thumbv6m-none-eabi
       - uses: actions/setup-python@v3
         with:
           python-version: '3.8'
       - name: Install Rainbow
         run: python3 -m pip install git+https://github.com/Ledger-Donjon/rainbow
-      - name: Run Fault check
+      - name: Run Fault check on pin_verif crate
         run: python3 fi_check.py test_fi_hard test_fi_hard2 --cli
