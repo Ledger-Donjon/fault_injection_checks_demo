@@ -2,6 +2,12 @@
 
 This repository contains the source code associated with the
 [Integrating fault injection in development workflows](https://blog.ledger.com/fault-injection-simulation/) blog post.
+Next to the `fi_check.py` demonstration script, you may find these Rust crates:
+
+  * `rust_fi`: contains the custom `assert_eq!` macro used by `fi_check.py`.
+  * `pin_verif`: contains examples of vulnerable functions and mitigation.
+  * `fault_hardened`: a set of Rust types hardened against single-fault
+    injection attacks.
 
 ## Requirements
 
