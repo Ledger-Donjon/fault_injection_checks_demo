@@ -120,12 +120,12 @@ def test_faults(path, begin: int, fault_model, max_ins=1000, cli_report=False):
     return faults
 
 
-def cargo_build_test(path="pin_verif") -> str:
-    """Call Cargo to build test and return path"""
+def cargo_build_test(crate_path: str) -> str:
+    """Call Cargo to build test and return executable path"""
     proc = subprocess.run(
         "cargo test --features test_fi --no-run --release --message-format=json",
         shell=True,
-        cwd=path,
+        cwd=crate_path,
         stdout=subprocess.PIPE,
     )
     proc.check_returncode()
@@ -157,11 +157,17 @@ if __name__ == "__main__":
         default=False,
         help="replay found faults with instruction trace",
     )
+    argp.add_argument(
+        "-p",
+        "--path",
+        default="pin_verif",
+        help="path of the crate to evaluate, defaults to 'pin_verif'",
+    )
     args = argp.parse_args()
 
     # Build emulator
-    path = cargo_build_test()
-    e = setup_emulator(path)
+    exe_path = cargo_build_test(args.path)
+    e = setup_emulator(exe_path)
 
     # If no functions name were provided, default to all functions beginning
     # with `test_fi_`
@@ -180,7 +186,7 @@ if __name__ == "__main__":
         for model in [fault_skip, fault_stuck_at(0), fault_stuck_at(0xFFFF_FFFF)]:
             if args.cli:
                 print(f"[ ] {model.__name__}")
-            res = test_faults(path, func, model, cli_report=args.cli)
+            res = test_faults(exe_path, func, model, cli_report=args.cli)
             if len(res) > 0:
                 exit_code = 1
                 total_faults += [[model, res]]
