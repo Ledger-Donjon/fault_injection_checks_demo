@@ -27,7 +27,6 @@ impl<T: PartialEq> PartialEq<&T> for Protected<T> {
     /// succeeded
     /// Always inline because otherwise the call to `eq()` could
     /// be skipped.
-    #[inline(always)]
     fn eq(&self, rhs: &&T) -> bool {
         if compare_never_inlined(rhs, &&self.0) {
             if compare_never_inlined(&self.0, rhs) {
