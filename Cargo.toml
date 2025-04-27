@@ -4,6 +4,7 @@ members = [
     "pin_verif",
     "rust_fi"
 ]
+resolver = "2"
 
 [profile.release]
 debug = true # symbols don't increase the size on Flash
