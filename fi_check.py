@@ -4,6 +4,7 @@ import json
 import subprocess
 
 import capstone as cs
+from rainbow import Print
 from rainbow.generics import rainbow_arm
 from rainbow.fault_models import fault_skip, fault_stuck_at
 from addr2line import get_addr2line
@@ -16,9 +17,9 @@ def setup_emulator(path: str) -> rainbow_arm:
     :param str path: Path of the ELF file to audit
     :return rainbow_arm: Rainbow instance
     """
-    emu = rainbow_arm()
+    emu = rainbow_arm(allow_stubs = True)
     emu.load(path, typ=".elf")
-    emu.trace = False
+    emu.setup()
 
     def faulted_behavior(emu: rainbow_arm):
         # ignore faults that are happening after normal behavior
@@ -43,10 +44,8 @@ def setup_emulator(path: str) -> rainbow_arm:
 
 def replay_fault(fault_index: int, emu, begin: int, fault_model, max_ins=200) -> None:
     """Execute function and display instruction trace, while applying fault at 'fault_index'"""
-    emu.trace = True
-    emu.function_calls = True
-    emu.mem_trace = True
-    emu.trace_regs = True
+    emu.print_config = Print.Functions | Print.Code | Print.Registers | Print.Memory
+    emu.setup()
 
     # Init metadata and reset
     emu.meta = {}
